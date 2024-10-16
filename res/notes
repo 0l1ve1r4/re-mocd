@@ -1,0 +1,31 @@
+- communities are groups of nodes that are
+densely interconnected but only sparely connected with the rest
+of the network
+
+- In order to extract such groups of nodes, one
+typically chooses an objective function that captures the intuition
+of a community as a group of nodes with better internal connectiv-
+ity than external connectivity. (NP-Hard) -> heuristics
+
+heuristics -> a consequence, the conventional community detection can be
+considered as a single-objective optimization problem (SOP). ->
+the single-objective community detection also faces some
+fundamental difficulties. These single-objective algorithms usually
+confine the solution to a particular community structure property
+because of only considering one objective function.
+In addition, one single fixed com-
+munity partition returned by the single-objective algorithms may
+not be suitable for the networks with multiple potential structures
+
+how to solve? 
+
+formulate the community detection as a
+multi-objective optimization problem (MOP).
+
+propose a novel
+
+multi-objective community detection algorithm (called MOCD).
+The MOCD includes two phases. In the first community detection
+phase, MOCD simultaneously optimizes two conflicting objective
+functions with evolutionary algorithm (EA) and returns a set of
+solutions which are optimal in terms of optimization objectives.
