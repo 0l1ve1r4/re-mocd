@@ -17,7 +17,7 @@ In addition, one single fixed com-
 munity partition returned by the single-objective algorithms may
 not be suitable for the networks with multiple potential structures
 
-how to solve? 
+how to solve?
 
 formulate the community detection as a
 multi-objective optimization problem (MOP).
