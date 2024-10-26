@@ -22,10 +22,8 @@ how to solve?
 formulate the community detection as a
 multi-objective optimization problem (MOP).
 
-propose a novel
-
-multi-objective community detection algorithm (called MOCD).
-The MOCD includes two phases. In the first community detection
+propose a multi-objective community detection algorithm (called MOCD).
+The MOCD includes two phases: in the first community detection
 phase, MOCD simultaneously optimizes two conflicting objective
-functions with evolutionary algorithm (EA) and returns a set of
+functions with a genetic algorithm and returns a set of
 solutions which are optimal in terms of optimization objectives.
