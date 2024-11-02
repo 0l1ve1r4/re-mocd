@@ -1,6 +1,10 @@
-#include <stdio.h>
-
+#include "../include/graph.h"
 
 int main(){
-    printf("Hello world");
+    Graph * undirected = createGraph(3, false);
+    undirected->addEdge(undirected, 0,1);
+    undirected->addEdge(undirected, 0, 2);
+
+    undirected->print(undirected);
+
 }

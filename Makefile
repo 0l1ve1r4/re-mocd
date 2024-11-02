@@ -1,4 +1,3 @@
-# Definições de variáveis
 CC = gcc
 CFLAGS = -Wall -Wextra -Wpedantic -Wshadow -Wformat=2 -Werror -O2
 SRC_DIR = src
