@@ -2,12 +2,23 @@
 
 #include <stdio.h>  // snprintf
 #include <stdlib.h> // malloc
+#include <string.h> //memset
 #include <raylib.h>
 #include <rlgl.h>
 #include <raymath.h>
+#include <pthread.h>
+
 
 #define WINDOW_TITLE "MOCD - Graph Output"
 #define NODE_RADIUS 30
+#define MAX_FORCE 0.05f
+#define REPULSION_DISTANCE 100.0f
+#define ATTRACTION_DISTANCE 50.0f
+
+/* Get positions just one time (optimization) */
+static Vector2 * global_positions = NULL;
+
+// static int grid_width, grid_height;
 
 static void drawGrid(void);
 static void _drawGraph(Graph * graph, int screen_width,
@@ -82,55 +93,102 @@ static void drawGrid(void) {
     rlPopMatrix();
 }
 
-static Vector2 * drawNodes(Graph * graph, int screen_width, int screen_height){
-    float radius = fminf(screen_width, screen_height) * 0.4f;
-    float angleIncrement = 2 * PI / graph->num_vertices;
-    Vector2 * positions = (Vector2 *)malloc(graph->num_vertices * sizeof(Vector2));
+static Vector2 * getNodesPos(Graph * graph, int screen_width, int screen_height) {
+    Vector2 *positions = (Vector2 *)malloc(graph->num_vertices * sizeof(Vector2));
     if (!positions) {
-        fprintf(stderr, "[drawNodes]: Memory Allocation Failed");
+        fprintf(stderr, "[getNodesPos]: Memory Allocation Failed");
         return NULL;
     }
 
-    // Pass 1: Calculate node positions
     for (uint32_t i = 0; i < graph->num_vertices; i++) {
-        float angle = i * angleIncrement;
-        positions[i] = (Vector2){
-            screen_width / 2 + cosf(angle) * radius,
-            screen_height / 2 + sinf(angle) * radius
+        positions[i] = (Vector2) {
+            rand() % screen_width,
+            rand() % screen_height
         };
     }
 
-    return positions;
+    Vector2 *forces = (Vector2 *)calloc(graph->num_vertices, sizeof(Vector2));
+    if (!forces) {
+        fprintf(stderr, "[getNodesPos]: Memory Allocation for Forces Failed");
+        free(positions);
+        return NULL;
+    }
 
+    for (int iteration = 0; iteration < 1000; iteration++) {
+        // Reset forces for each iteration
+        memset(forces, 0, graph->num_vertices * sizeof(Vector2));
+
+        // Calculate repulsive forces
+        for (uint32_t i = 0; i < graph->num_vertices; i++) {
+            Vector2 pos_i = positions[i];
+            for (uint32_t j = i + 1; j < graph->num_vertices; j++) {
+                Vector2 pos_j = positions[j];
+                Vector2 direction = Vector2Subtract(pos_j, pos_i);
+                float distance = Vector2Length(direction);
+
+                if (distance < REPULSION_DISTANCE) {
+                    direction = Vector2Normalize(direction);
+                    float forceMagnitude = MAX_FORCE * (REPULSION_DISTANCE - distance);
+                    forces[i] = Vector2Add(forces[i], Vector2Scale(direction, forceMagnitude));
+                    forces[j] = Vector2Subtract(forces[j], Vector2Scale(direction, forceMagnitude));
+                }
+            }
+        }
+
+        // Calculate attractive forces
+        for (uint32_t i = 0; i < graph->num_vertices; i++) {
+            struct Node* temp = graph->adj_lists[i];
+            Vector2 pos_i = positions[i];
+
+            while (temp) {
+                int j = temp->vertex;
+                Vector2 pos_j = positions[j];
+                Vector2 direction = Vector2Subtract(pos_j, pos_i);
+                float distance = Vector2Length(direction);
+
+                if (distance < ATTRACTION_DISTANCE) {
+                    direction = Vector2Normalize(direction);
+                    float forceMagnitude = MAX_FORCE * (ATTRACTION_DISTANCE - distance);
+                    forces[i] = Vector2Subtract(forces[i], Vector2Scale(direction, forceMagnitude));
+                }
+
+                temp = temp->next;
+            }
+        }
+
+        for (uint32_t i = 0; i < graph->num_vertices; i++) {
+            positions[i] = Vector2Add(positions[i], forces[i]);
+
+            positions[i].x = fminf(fmaxf(positions[i].x, NODE_RADIUS), screen_width - NODE_RADIUS);
+            positions[i].y = fminf(fmaxf(positions[i].y, NODE_RADIUS), screen_height - NODE_RADIUS);
+        }
+    }
+
+    free(forces);
+    return positions;
 }
 
-static void drawEdges(Graph* graph, Vector2 * positions){
+static void drawNodes(Graph* graph, Vector2 * positions){
     for (uint32_t i = 0; i < graph->num_vertices; i++) {
-        // Draw node circle
         DrawCircleV(positions[i], NODE_RADIUS, MAROON);
 
-        // Draw node label
         char label[10];
         snprintf(label, sizeof(label), "%d", i);
         int textWidth = MeasureText(label, 20);
         DrawText(label, positions[i].x - textWidth / 2, positions[i].y - 10, 20, WHITE);
 
-        // Draw edges with arrows
         struct Node* temp = graph->adj_lists[i];
         while (temp) {
-            int j = temp->vertex;  // Destination node index
+            int j = temp->vertex;
 
-            // Calculate direction and positions for arrow
             Vector2 start = positions[i];
             Vector2 end = positions[j];
             Vector2 direction = Vector2Normalize(Vector2Subtract(end, start));
             Vector2 arrowStart = Vector2Add(start, Vector2Scale(direction, 30)); // Move out of the node
             Vector2 arrowEnd = Vector2Subtract(end, Vector2Scale(direction, 30)); // Move into the destination node
 
-            // Draw line for edge
             DrawLineV(arrowStart, arrowEnd, DARKGRAY);
 
-            // Draw arrowhead if directed graph
             if (graph->is_directed) {
                 float arrowSize = 10.0f;
                 Vector2 perp = (Vector2){-direction.y, direction.x};
@@ -138,7 +196,6 @@ static void drawEdges(Graph* graph, Vector2 * positions){
                 Vector2 right = Vector2Add(left, Vector2Scale(perp, arrowSize / 2));
                 left = Vector2Subtract(left, Vector2Scale(perp, arrowSize / 2));
 
-                // Draw arrowhead triangle
                 DrawTriangle(arrowEnd, left, right, DARKGRAY);
             }
             temp = temp->next;
@@ -147,8 +204,6 @@ static void drawEdges(Graph* graph, Vector2 * positions){
 }
 
 static void _drawGraph(Graph * graph, int screen_width, int screen_height){
-    Vector2 * positions = drawNodes(graph, screen_width, screen_height);
-    drawEdges(graph, positions);
-
-    if (positions != NULL) free(positions);
+    if (global_positions == NULL) global_positions = getNodesPos(graph, screen_width, screen_height);
+    drawNodes(graph, global_positions);
 }
