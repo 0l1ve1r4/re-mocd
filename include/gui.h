@@ -5,20 +5,11 @@
 //    under the terms of the GNU GPL3 or any later version.
 //========================================================================
 
-#include "../include/graph.h"
-#include "../include/gui.h"
-#include <stdbool.h>
+#ifndef GUI_H
+#define GUI_H
 
-static uint32_t num_nodes = 30000;
-static bool is_directed = true;
+#include "graph.h"
 
-int main(){
-    Graph * graph = createGraph(num_nodes, is_directed);
+void drawGraph(Graph * graph, int width, int height);
 
-    for (uint32_t i = 0; i< num_nodes; i++)
-        if (i%2 == 0)
-            graph->addEdge(graph, i/3, i);
-
-    drawGraph(graph, 1200, 600);
-
-}
+#endif /* GUI_H */

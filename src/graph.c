@@ -33,7 +33,10 @@ static void addEdge(Graph* graph, uint32_t src, uint32_t dest) {
 }
 
 static void printGraph(Graph* graph) {
-    printf("Vertex:  Adjacency List\n");
+    if (graph->is_directed) printf("DIRECTED GRAPH:\n");
+    else printf("UNDIRECTED GRAPH:\n");
+
+    printf("Vertex ---> Adjacency List\n");
     for (uint32_t v = 0; v < graph->num_vertices; v++) {
         struct Node* temp = graph->adj_lists[v];
         printf("%d --->", v);

@@ -1,5 +1,6 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -Wpedantic -Wshadow -Wformat=2 -Werror -O2
+CFLAGS = -Wall -Wextra -Wpedantic -Wshadow -Wformat=2 -Werror -O2 -Iinclude
+LDFLAGS = libs/libraylib.a -lGL -lm -lpthread -ldl -lrt -lX11
 SRC_DIR = src
 OBJ_DIR = obj
 BIN_DIR = bin
@@ -10,33 +11,36 @@ OBJS = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 
 EXEC = $(BIN_DIR)/mocd
 
-# Default
+# Default target
 all: $(EXEC)
 
 $(EXEC): $(OBJS)
-	$(CC) $(OBJS) -o $@
+	@mkdir -p $(BIN_DIR)
+	$(CC) $(OBJS) -o $@ $(LDFLAGS)
 
-# .c -> .o
+# Compile source files to object files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(OBJ_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-test: $(TEST_DIR)/test_community.o $(TEST_DIR)/test_optimization.o $(TEST_DIR)/test_utils.o
-	$(CC) -o $(BIN_DIR)/test_community $(TEST_DIR)/test_community.o $(TEST_DIR)/test_optimization.o $(TEST_DIR)/test_utils.o
+# Test target
+TEST_EXEC = $(BIN_DIR)/test_community
+TEST_SRCS = $(wildcard $(TEST_DIR)/*.c)
+TEST_OBJS = $(TEST_SRCS:$(TEST_DIR)/%.c=$(OBJ_DIR)/%.o)
 
-$(TEST_DIR)/test_community.o: $(TEST_DIR)/test_community.c
+test: $(TEST_EXEC)
+
+$(TEST_EXEC): $(TEST_OBJS)
 	@mkdir -p $(BIN_DIR)
+	$(CC) $(TEST_OBJS) -o $@ $(LDFLAGS)
+
+# Compile test files to object files
+$(OBJ_DIR)/%.o: $(TEST_DIR)/%.c
+	@mkdir -p $(OBJ_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(TEST_DIR)/test_optimization.o: $(TEST_DIR)/test_optimization.c
-	@mkdir -p $(BIN_DIR)
-	$(CC) $(CFLAGS) -c $< -o $@
-
-$(TEST_DIR)/test_utils.o: $(TEST_DIR)/test_utils.c
-	@mkdir -p $(BIN_DIR)
-	$(CC) $(CFLAGS) -c $< -o $@
-
+# Clean up generated files
 clean:
-	rm -rf $(OBJ_DIR)/*.o $(EXEC) $(BIN_DIR)/test_community
+	rm -rf $(OBJ_DIR)/*.o $(EXEC) $(TEST_EXEC)
 
 .PHONY: all clean test
