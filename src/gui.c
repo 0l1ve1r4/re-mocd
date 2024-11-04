@@ -1,26 +1,61 @@
+//========================================================================
+//    This file is part of mocd (Multi-objective Community Detection).
+//    Copyright (C) 2024 Guilherme Oliveira Santos
+//    This is free software: you can redistribute it and/or modify it
+//    under the terms of the GNU GPL3 or any later version.
+//========================================================================
+
+//========================================================================
+// INCLUDES
+//========================================================================
+
 #include "../include/gui.h"
 
-#include <stdio.h>  // snprintf
-#include <stdlib.h> // malloc
-#include <string.h> //memset
+//#include <cstdlib>
+#include <stdio.h>      // snprintf
+#include <stdlib.h>     // malloc
+#include <string.h>     // memset
 #include <raylib.h>
 #include <rlgl.h>
 #include <raymath.h>
-#include <pthread.h>
+#include <pthread.h>    // calculateRepulsion threads
+#include <sys/time.h>   // calculateRepulsion time spent
 
+//========================================================================
+// DEFINES
+//========================================================================
 
 #define WINDOW_TITLE "MOCD - Graph Output"
 #define NODE_RADIUS 30
 #define MAX_FORCE 0.05f
 #define REPULSION_DISTANCE 100.0f
 #define ATTRACTION_DISTANCE 50.0f
+#define NUM_THREADS 8
+#define GRID_WIDTH_MULTIPLIER 10
+#define GRID_HEIGHT_MULTIPLIER 5
+#define REPULSION_STRENGTH 10000.0f
 
-/* Get positions just one time (optimization) */
+/* Make this variables changes just one time (optimization) */
 static Vector2 * global_positions = NULL;
+static int grid_width = 0;
+static int grid_height = 0;
 
-// static int grid_width, grid_height;
+//========================================================================
+// STRUCTS
+//========================================================================
 
-static void drawGrid(void);
+typedef struct {
+    Vector2 *positions;
+    uint32_t start_idx;
+    uint32_t end_idx;
+    uint32_t num_vertices;
+    float repulsion_strength;
+} ThreadData;
+
+//========================================================================
+// FUNCIONS
+//========================================================================
+
 static void _drawGraph(Graph * graph, int screen_width,
             int screen_height);
 
@@ -70,7 +105,6 @@ void drawGraph(Graph * graph, int width, int height){
 
                 BeginMode2D(camera);
 
-                drawGrid();
                 _drawGraph(graph, screen_width, screen_height);
 
                 EndMode2D();
@@ -85,86 +119,101 @@ void drawGraph(Graph * graph, int width, int height){
         CloseWindow();        // Close window and OpenGL context
 }
 
-static void drawGrid(void) {
-    rlPushMatrix();
-        rlTranslatef(0, 25 * 50, 0);
-        rlRotatef(90, 1, 0, 0);
-        DrawGrid(100, 50);
-    rlPopMatrix();
+void *calculateRepulsion(void *arg) {
+    ThreadData *data = (ThreadData *)arg;
+    for (uint32_t i = data->start_idx; i < data->end_idx; i++) {
+        Vector2 force = {0.0f, 0.0f};
+        for (uint32_t j = 0; j < data->num_vertices; j++) {
+            if (i != j) {
+                Vector2 diff = Vector2Subtract(data->positions[i], data->positions[j]);
+                float dist = Vector2Length(diff) + 0.1f;
+                float repulsion = data->repulsion_strength / (dist * dist);
+                force = Vector2Add(force, Vector2Scale(Vector2Normalize(diff), repulsion));
+            }
+        }
+        data->positions[i] = Vector2Add(data->positions[i], Vector2Scale(force, 0.01f));
+    }
+    return NULL;
 }
 
-static Vector2 * getNodesPos(Graph * graph, int screen_width, int screen_height) {
+static Vector2 * getNodesPosThread(Graph * graph) {
+    float radius = fminf(grid_width, grid_height) * 0.4f;
     Vector2 *positions = (Vector2 *)malloc(graph->num_vertices * sizeof(Vector2));
     if (!positions) {
         fprintf(stderr, "[getNodesPos]: Memory Allocation Failed");
         return NULL;
     }
 
+    srand(time(NULL));
+
+    // Initialize random positions within the grid
     for (uint32_t i = 0; i < graph->num_vertices; i++) {
-        positions[i] = (Vector2) {
-            rand() % screen_width,
-            rand() % screen_height
-        };
+        float randomX = (float)(rand() % grid_width);
+        float randomY = (float)(rand() % grid_height);
+        positions[i] = (Vector2){ randomX, randomY };
     }
 
-    Vector2 *forces = (Vector2 *)calloc(graph->num_vertices, sizeof(Vector2));
-    if (!forces) {
-        fprintf(stderr, "[getNodesPos]: Memory Allocation for Forces Failed");
-        free(positions);
+    // Setup threading for repulsion effect
+    pthread_t threads[NUM_THREADS];
+    ThreadData thread_data[NUM_THREADS];
+
+    // Main repulsion iterations
+    for (uint32_t iter = 0; iter < 100; iter++) {
+        // Divide work among threads
+        uint32_t nodes_per_thread = graph->num_vertices / NUM_THREADS;
+        for (int t = 0; t < NUM_THREADS; t++) {
+            thread_data[t].positions = positions;
+            thread_data[t].start_idx = t * nodes_per_thread;
+            thread_data[t].end_idx = (t == NUM_THREADS - 1) ? graph->num_vertices : (t + 1) * nodes_per_thread;
+            thread_data[t].num_vertices = graph->num_vertices;
+            thread_data[t].repulsion_strength = REPULSION_STRENGTH;
+            pthread_create(&threads[t], NULL, calculateRepulsion, &thread_data[t]);
+        }
+
+        // Join threads
+        for (int t = 0; t < NUM_THREADS; t++) {
+            pthread_join(threads[t], NULL);
+        }
+    }
+
+    return positions;
+}
+
+static Vector2 * getNodesPos(Graph * graph){
+    float radius = fminf(grid_width, grid_height) * 0.4f;
+    Vector2 * positions = (Vector2 *)malloc(graph->num_vertices * sizeof(Vector2));
+    if (!positions) {
+        fprintf(stderr, "[getNodesPos]: Memory Allocation Failed");
         return NULL;
     }
 
-    for (int iteration = 0; iteration < 1000; iteration++) {
-        // Reset forces for each iteration
-        memset(forces, 0, graph->num_vertices * sizeof(Vector2));
+    // Seed random for initial node positions
+    srand(time(NULL));
 
-        // Calculate repulsive forces
+    // Initialize random positions around center within the grid
+    for (uint32_t i = 0; i < graph->num_vertices; i++) {
+        float randomX = grid_width / 2 + ((rand() % (int)(2 * radius)) - radius);
+        float randomY = grid_height / 2 + ((rand() % (int)(2 * radius)) - radius);
+        positions[i] = (Vector2){ randomX, randomY };
+    }
+
+    // Apply a basic repulsion effect to disperse nodes
+    float repulsion_strength = 10000.0f; // Tweak this value for more/less repulsion
+    for (uint32_t iter = 0; iter < 100; iter++) { // Increase for finer dispersion
         for (uint32_t i = 0; i < graph->num_vertices; i++) {
-            Vector2 pos_i = positions[i];
-            for (uint32_t j = i + 1; j < graph->num_vertices; j++) {
-                Vector2 pos_j = positions[j];
-                Vector2 direction = Vector2Subtract(pos_j, pos_i);
-                float distance = Vector2Length(direction);
-
-                if (distance < REPULSION_DISTANCE) {
-                    direction = Vector2Normalize(direction);
-                    float forceMagnitude = MAX_FORCE * (REPULSION_DISTANCE - distance);
-                    forces[i] = Vector2Add(forces[i], Vector2Scale(direction, forceMagnitude));
-                    forces[j] = Vector2Subtract(forces[j], Vector2Scale(direction, forceMagnitude));
+            Vector2 force = { 0.0f, 0.0f };
+            for (uint32_t j = 0; j < graph->num_vertices; j++) {
+                if (i != j) {
+                    Vector2 diff = Vector2Subtract(positions[i], positions[j]);
+                    float dist = Vector2Length(diff) + 0.1f;
+                    float repulsion = repulsion_strength / (dist * dist); // Inverse square law
+                    force = Vector2Add(force, Vector2Scale(Vector2Normalize(diff), repulsion));
                 }
             }
-        }
-
-        // Calculate attractive forces
-        for (uint32_t i = 0; i < graph->num_vertices; i++) {
-            struct Node* temp = graph->adj_lists[i];
-            Vector2 pos_i = positions[i];
-
-            while (temp) {
-                int j = temp->vertex;
-                Vector2 pos_j = positions[j];
-                Vector2 direction = Vector2Subtract(pos_j, pos_i);
-                float distance = Vector2Length(direction);
-
-                if (distance < ATTRACTION_DISTANCE) {
-                    direction = Vector2Normalize(direction);
-                    float forceMagnitude = MAX_FORCE * (ATTRACTION_DISTANCE - distance);
-                    forces[i] = Vector2Subtract(forces[i], Vector2Scale(direction, forceMagnitude));
-                }
-
-                temp = temp->next;
-            }
-        }
-
-        for (uint32_t i = 0; i < graph->num_vertices; i++) {
-            positions[i] = Vector2Add(positions[i], forces[i]);
-
-            positions[i].x = fminf(fmaxf(positions[i].x, NODE_RADIUS), screen_width - NODE_RADIUS);
-            positions[i].y = fminf(fmaxf(positions[i].y, NODE_RADIUS), screen_height - NODE_RADIUS);
+            positions[i] = Vector2Add(positions[i], Vector2Scale(force, 0.01f)); // Move node by calculated force
         }
     }
 
-    free(forces);
     return positions;
 }
 
@@ -204,6 +253,21 @@ static void drawNodes(Graph* graph, Vector2 * positions){
 }
 
 static void _drawGraph(Graph * graph, int screen_width, int screen_height){
-    if (global_positions == NULL) global_positions = getNodesPos(graph, screen_width, screen_height);
+
+
+    if (global_positions == NULL) {
+        struct timeval start, stop;
+        double secs = 0;
+        gettimeofday(&start, NULL);
+        // ===============================================================
+        grid_width = graph->num_vertices * GRID_WIDTH_MULTIPLIER;
+        grid_height = graph->num_vertices * GRID_HEIGHT_MULTIPLIER;
+        global_positions = getNodesPosThread(graph); // 10-20x faster.
+        // global_positions = getNodesPos(graph);
+        // ===============================================================
+        gettimeofday(&stop, NULL);
+        secs = (double)(stop.tv_usec - start.tv_usec) / 1000000 + (double)(stop.tv_sec - start.tv_sec);
+        printf("[_drawGraph]: Time taken %f\n",secs);
+    }
     drawNodes(graph, global_positions);
 }

@@ -10,16 +10,16 @@
 
 #include <stdbool.h>
 
-static uint32_t num_nodes = 10000;
+static uint32_t num_nodes = 100;
 static bool is_directed = false;
 
 int main(){
     Graph * graph = createGraph(num_nodes, is_directed);
 
     for (uint32_t i = 0; i< num_nodes; i++)
-        if (i%23 == 0)
+        if (i%2 == 0)
             graph->addEdge(graph, i/3, i);
 
-    drawGraph(graph, 9000, 9000);
+    drawGraph(graph, 1900, 1100);
 
 }
