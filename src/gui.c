@@ -31,15 +31,16 @@
 #define REPULSION_DISTANCE 100.0f
 #define ATTRACTION_DISTANCE 50.0f
 #define NUM_THREADS 8
-#define GRID_WIDTH_MULTIPLIER 10
-#define GRID_HEIGHT_MULTIPLIER 5
+#define GRID_WIDTH_MULTIPLIER NODE_RADIUS/2
+#define GRID_HEIGHT_MULTIPLIER NODE_RADIUS/2
 #define REPULSION_STRENGTH 10000.0f
 
 /* Make this variables changes just one time (optimization) */
 static Vector2 * global_positions = NULL;
+static int selectedNode = -1; // -1 means no node is selected
 static int grid_width = 0;
 static int grid_height = 0;
-
+Camera2D camera = { 0 };
 //========================================================================
 // STRUCTS
 //========================================================================
@@ -65,7 +66,6 @@ void drawGraph(Graph * graph, int width, int height){
 
         InitWindow(screen_width, screen_height, WINDOW_TITLE);
 
-        Camera2D camera = { 0 };
         camera.zoom = 1.0f;
 
         int zoom_mode = 0;
@@ -159,7 +159,6 @@ static Vector2 * getNodesPosThread(Graph * graph) {
 
     // Main repulsion iterations
     for (uint32_t iter = 0; iter < 100; iter++) {
-        // Divide work among threads
         uint32_t nodes_per_thread = graph->num_vertices / NUM_THREADS;
         for (int t = 0; t < NUM_THREADS; t++) {
             thread_data[t].positions = positions;
@@ -190,15 +189,12 @@ static Vector2 * getNodesPos(Graph * graph){
     // Seed random for initial node positions
     srand(time(NULL));
 
-    // Initialize random positions around center within the grid
     for (uint32_t i = 0; i < graph->num_vertices; i++) {
         float randomX = grid_width / 2 + ((rand() % (int)(2 * radius)) - radius);
         float randomY = grid_height / 2 + ((rand() % (int)(2 * radius)) - radius);
         positions[i] = (Vector2){ randomX, randomY };
     }
 
-    // Apply a basic repulsion effect to disperse nodes
-    float repulsion_strength = 10000.0f; // Tweak this value for more/less repulsion
     for (uint32_t iter = 0; iter < 100; iter++) { // Increase for finer dispersion
         for (uint32_t i = 0; i < graph->num_vertices; i++) {
             Vector2 force = { 0.0f, 0.0f };
@@ -206,7 +202,7 @@ static Vector2 * getNodesPos(Graph * graph){
                 if (i != j) {
                     Vector2 diff = Vector2Subtract(positions[i], positions[j]);
                     float dist = Vector2Length(diff) + 0.1f;
-                    float repulsion = repulsion_strength / (dist * dist); // Inverse square law
+                    float repulsion = REPULSION_STRENGTH / (dist * dist); // Inverse square law
                     force = Vector2Add(force, Vector2Scale(Vector2Normalize(diff), repulsion));
                 }
             }
@@ -217,18 +213,50 @@ static Vector2 * getNodesPos(Graph * graph){
     return positions;
 }
 
-static void drawNodes(Graph* graph, Vector2 * positions){
+static void drawNodes(Graph* graph, Vector2 * positions) {
+    Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), camera);
+
+    if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) selectedNode = -1;
+
+    // Check for mouse click on a node
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        for (uint32_t i = 0; i < graph->num_vertices; i++) {
+            if (CheckCollisionPointCircle(mousePos, positions[i], NODE_RADIUS)) {
+                selectedNode = i;
+                break;
+            }
+        }
+    }
+
+    // Array to keep track of nodes connected to the selected node
+    bool *highlightedNodes = (bool *)calloc(graph->num_vertices, sizeof(bool));
+
+    if (selectedNode != -1) {
+        highlightedNodes[selectedNode] = true;
+
+        struct Node *temp = graph->adj_lists[selectedNode];
+        while (temp) {
+            highlightedNodes[temp->vertex] = true;
+            temp = temp->next;
+        }
+    }
+
     for (uint32_t i = 0; i < graph->num_vertices; i++) {
-        DrawCircleV(positions[i], NODE_RADIUS, MAROON);
+        Color nodeColor = (selectedNode == -1 || highlightedNodes[i]) ? MAROON : (Color){128, 0, 0, 64};
+
+        // Draw current node
+        DrawCircleV(positions[i], NODE_RADIUS, nodeColor);
 
         char label[10];
         snprintf(label, sizeof(label), "%d", i);
         int textWidth = MeasureText(label, 20);
         DrawText(label, positions[i].x - textWidth / 2, positions[i].y - 10, 20, WHITE);
 
+        // Draw edges with lower opacity if neither end is highlighted
         struct Node* temp = graph->adj_lists[i];
         while (temp) {
             int j = temp->vertex;
+            Color edgeColor = (selectedNode == -1 || highlightedNodes[i] || highlightedNodes[j]) ? DARKGRAY : (Color){169, 169, 169, 128};
 
             Vector2 start = positions[i];
             Vector2 end = positions[j];
@@ -236,7 +264,7 @@ static void drawNodes(Graph* graph, Vector2 * positions){
             Vector2 arrowStart = Vector2Add(start, Vector2Scale(direction, 30)); // Move out of the node
             Vector2 arrowEnd = Vector2Subtract(end, Vector2Scale(direction, 30)); // Move into the destination node
 
-            DrawLineV(arrowStart, arrowEnd, DARKGRAY);
+            DrawLineV(arrowStart, arrowEnd, edgeColor);
 
             if (graph->is_directed) {
                 float arrowSize = 10.0f;
@@ -245,12 +273,15 @@ static void drawNodes(Graph* graph, Vector2 * positions){
                 Vector2 right = Vector2Add(left, Vector2Scale(perp, arrowSize / 2));
                 left = Vector2Subtract(left, Vector2Scale(perp, arrowSize / 2));
 
-                DrawTriangle(arrowEnd, left, right, DARKGRAY);
+                DrawTriangle(arrowEnd, left, right, edgeColor);
             }
             temp = temp->next;
         }
     }
+
+    free(highlightedNodes); // Clean up
 }
+
 
 static void _drawGraph(Graph * graph, int screen_width, int screen_height){
 
