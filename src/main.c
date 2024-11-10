@@ -10,8 +10,8 @@
 
 #include <stdbool.h>
 
-static uint32_t num_vertices = 100;
-static uint32_t num_nodes = 100;
+static uint32_t num_vertices = 1000;
+static uint32_t num_nodes = 3000;
 static uint32_t community_size = 10;            // Define the number of nodes per community
 static uint32_t inter_community_link_prob = 10; // Probability (in %) of inter-community edges
 static bool is_directed = false;
@@ -19,7 +19,7 @@ static int window_width = 1900;
 static int windown_height = 900;
 
 int main(void){
-    drawGraph(createDenseGraph(num_vertices, num_nodes, community_size,
+    drawGraph(createDenseGraph(num_nodes, num_nodes, community_size,
             inter_community_link_prob, is_directed), window_width,
             windown_height);
 }

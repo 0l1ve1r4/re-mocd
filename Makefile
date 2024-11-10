@@ -1,6 +1,6 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -Wpedantic -Wshadow -Wformat=2 -O2 -Iinclude
-LDFLAGS = libs/libraylib.a -lGL -lm -lpthread -ldl -lrt -lX11
+CFLAGS = -Wall -Wextra -Wpedantic -Wshadow -Wformat=2 -O3 -Iinclude
+LDFLAGS = -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
 SRC_DIR = src
 OBJ_DIR = obj
 BIN_DIR = bin
