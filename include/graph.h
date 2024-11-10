@@ -33,4 +33,9 @@ typedef struct Graph {
 
 Graph * createGraph(uint32_t num_vertices, bool is_directed);
 
+Graph * createDenseGraph(uint32_t num_vertices, uint32_t num_nodes,
+                        uint32_t community_size,
+                        uint32_t inter_community_link_prob,
+                        bool is_directed);
+
 #endif // GRAPH_H

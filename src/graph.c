@@ -10,6 +10,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/types.h>
+#include <stdint.h>
+
+#define CONNECTING_COMMUNITY_CHANCE 80
 
 static Node * createNode(uint32_t v) {
     Node * node = (Node*)malloc(sizeof(Node));
@@ -64,5 +67,28 @@ Graph * createGraph(uint32_t num_vertices, bool is_directed) {
     graph->addEdge = addEdge;
     graph->print = printGraph;
 
+    return graph;
+}
+
+Graph * createDenseGraph(uint32_t num_vertices, uint32_t num_nodes,
+                        uint32_t community_size, uint32_t inter_prob,
+                        bool is_directed) {
+    Graph * graph = createGraph(num_vertices, is_directed);
+    for (uint32_t i = 0; i < num_nodes; i++) {
+        uint32_t community_start = (i / community_size) * community_size;
+
+        for (uint32_t j = community_start; j <
+            community_start + community_size; j++) {
+            if (j != i && (rand() % 100) < CONNECTING_COMMUNITY_CHANCE) {
+                graph->addEdge(graph, i, j);
+            }
+        }
+
+        if ((rand() % 100) < inter_prob) {
+            uint32_t other_community_start = ((rand() % (num_nodes / community_size)) * community_size);
+            uint32_t random_node = other_community_start + (rand() % community_size);
+            graph->addEdge(graph, i, random_node);
+        }
+    }
     return graph;
 }
