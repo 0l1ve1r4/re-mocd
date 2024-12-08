@@ -5,3 +5,7 @@ edition = "2021"
 
 [dependencies]
 petgraph = "0.6.5"
+
+egui_graphs = { git = "https://github.com/blitzarx1/egui_graphs" }
+egui = "0.29"
+eframe = "0.29"
