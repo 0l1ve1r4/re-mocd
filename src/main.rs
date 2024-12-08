@@ -2,11 +2,10 @@ use eframe::{run_native, App, CreationContext};
 use egui::Context;
 use egui_graphs::{DefaultGraphView, Graph, SettingsInteraction, SettingsStyle};
 
-mod  graph;
-use graph::{
-    high_inter_graph,
-    high_intra_graph
-};
+mod graphs;
+mod modularity;
+
+const GLOBAL_GRAPH_VIEW: u8 = 0x04; 
 
 pub struct InteractiveApp {
     g: Graph,
@@ -43,12 +42,12 @@ impl App for InteractiveApp {
 }
 
 fn generate_graph() -> Graph {
-    if true {
-        return Graph::from(&high_inter_graph())
-    }
-
-    else {
-        return Graph::from(&high_intra_graph())
+    match GLOBAL_GRAPH_VIEW {
+        0x01 => return Graph::from(&graphs::perfectly_communities().0),
+        0x02 => return Graph::from(&graphs::create_complete_mixing().0),
+        0x03 => return Graph::from(&graphs::create_single_community().0),
+        0x04 => return Graph::from(&graphs::create_sparse_communities().0),
+        _    => return Graph::from(&graphs::create_empty_graph().0),
     }
 
 }
@@ -56,7 +55,7 @@ fn generate_graph() -> Graph {
 fn main() {
     let native_options = eframe::NativeOptions::default();
     run_native(
-        "egui_graphs_interactive_demo",
+        "MOCD - Graph Viewer",
         native_options,
         Box::new(|cc| Ok(Box::new(InteractiveApp::new(cc)))),
     )
