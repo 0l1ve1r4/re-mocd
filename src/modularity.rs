@@ -66,7 +66,7 @@ mod tests {
         let (graph, partition) = perfectly_communities();
         let modularity = calculate_objectives(&graph, &partition).0;
         // High modularity expected as communities are perfectly separated
-        assert!(modularity > 0.7, "Modularity should be high for perfect separation");
+        assert!(modularity > 0.7);
     }
 
     #[test]
