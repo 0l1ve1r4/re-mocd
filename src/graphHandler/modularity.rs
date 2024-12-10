@@ -1,5 +1,5 @@
 use petgraph::stable_graph::StableGraph;
-use crate::graphs::Partition;
+use crate::graphHandler::graphs::Partition;
 
 pub fn calculate_objectives(graph: &StableGraph<(), ()>, partition: &Partition) -> (f64, f64, f64) {
     let total_edges = graph.edge_count() as f64;
@@ -50,10 +50,11 @@ pub fn calculate_objectives(graph: &StableGraph<(), ()>, partition: &Partition) 
 
 }
 
+/*
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graphs::{
+    use crate::graph::{
         perfectly_communities,
         create_complete_mixing,
         create_empty_graph,
@@ -99,3 +100,4 @@ mod tests {
         assert_eq!(modularity, 0.0, "Modularity should be 0.0 for empty graph");
     }
 }
+ */

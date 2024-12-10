@@ -18,6 +18,36 @@ fn create_partition(communities: Vec<Vec<NodeIndex>>) -> Partition {
     partition
 }
 
+// Function to convert a partition into a graph representation
+pub fn partition_to_graph(partition: &Partition) -> StableGraph<(), ()> {
+    let mut graph = StableGraph::new();
+    let mut node_map = HashMap::new();
+
+    // Add nodes to the graph
+    for community in partition.communities.values() {
+        for &node in community {
+            node_map.entry(node).or_insert_with(|| graph.add_node(()));
+        }
+    }
+
+    // Add edges between nodes in the same community
+    for community in partition.communities.values() {
+        for &node1 in community {
+            for &node2 in community {
+                if node1 != node2 {
+                    let graph_node1 = node_map[&node1];
+                    let graph_node2 = node_map[&node2];
+                    if !graph.find_edge(graph_node1, graph_node2).is_some() {
+                        graph.add_edge(graph_node1, graph_node2, ());
+                    }
+                }
+            }
+        }
+    }
+
+    graph
+}
+
 // Create a graph with two perfectly separated communities
 // Community 1: 0-1-2 (fully connected)
 // Community 2: 3-4-5 (fully connected)
