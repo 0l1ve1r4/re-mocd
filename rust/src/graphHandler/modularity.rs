@@ -50,11 +50,10 @@ pub fn calculate_objectives(graph: &StableGraph<(), ()>, partition: &Partition) 
 
 }
 
-/*
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::{
+    use crate::graphHandler::graphs::{
         perfectly_communities,
         create_complete_mixing,
         create_empty_graph,
@@ -100,4 +99,4 @@ mod tests {
         assert_eq!(modularity, 0.0, "Modularity should be 0.0 for empty graph");
     }
 }
- */
+ 
