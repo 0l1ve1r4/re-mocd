@@ -1,4 +1,5 @@
 import networkx as nx
+from multiprocessing import Pool
 import matplotlib.pyplot as plt
 import random
 import numpy as np
@@ -158,8 +159,10 @@ def genetic_algorithm(graph, generations=80, population_size=100):
     # Run on real network
     real_population = generate_initial_population(graph, population_size)
     for generation in range(generations):
-        # Evaluate fitness
-        fitnesses = [calculate_objectives(graph, partition) for partition in real_population]
+        with Pool() as pool:
+            # Create a list of arguments for each call
+            args = [(graph, partition) for partition in real_population]
+            fitnesses = pool.starmap(calculate_objectives, args)
 
         modularity_values = [fitness[0] for fitness in fitnesses]
         best_fitness = max(modularity_values)

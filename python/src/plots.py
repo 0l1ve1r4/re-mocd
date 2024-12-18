@@ -77,7 +77,7 @@ def plot_fitness_history(best_fitness_history, avg_fitness_history):
     plt.grid(True)
     plt.show()
 
-def plot_louvain(G, louvain_communities):
+def plot_louvain(G, louvain_communities, save_file_path = None):
     node_to_community = {}  # Initialize the dictionary
     for community_id, community_nodes in enumerate(louvain_communities.communities):
         for node in community_nodes:
@@ -95,7 +95,7 @@ def plot_louvain(G, louvain_communities):
     plt.title("Comunidades Detectadas pelo Algoritmo de Louvain")
     plt.show()
 
-def visualize_comparison(graph, partition_ga, partition_louvain, nmi_score):
+def visualize_comparison(graph, partition_ga, partition_louvain, nmi_score, save_file_path = None):
     fig, axs = plt.subplots(1, 2, figsize=(16, 8))
     pos = nx.spring_layout(graph, seed=42)
 
@@ -130,4 +130,9 @@ def visualize_comparison(graph, partition_ga, partition_louvain, nmi_score):
     axs[1].set_title("Louvain Algorithm Communities")
     axs[1].axis('off')
     fig.suptitle(f'nmi_score: {nmi_score}', fontsize=16)
-    plt.show()
+    
+    if save_file_path == None:
+        plt.show()
+        return
+
+    plt.savefig(save_file_path)

@@ -4,12 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-petgraph = "0.6.5"
-
-egui_graphs = { git = "https://github.com/blitzarx1/egui_graphs", features = ["events"] }
-egui = "0.29"
-eframe = "0.29"
-serde_json = "1.0"
-fdg = { git = "https://github.com/grantshandy/fdg" }
+petgraph = "0.6"
 rand = "0.8"
-crossbeam = "0.8"
+rayon = "1.5"

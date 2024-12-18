@@ -1,13 +1,15 @@
 import utils
 import random
 import plots as pl
+import pandas as pd
 import networkx as nx
 import genetic_algorithm as ga
 
 from collections import defaultdict
 from cdlib import algorithms, evaluation, NodeClustering
+from networkx.generators.community import LFR_benchmark_graph
 
-NUM_GENERATIONS = 400
+NUM_GENERATIONS = 800
 POPULATION_SIZE = 100
 
 
@@ -25,31 +27,84 @@ def compute_nmi(partition_ga, partition_louvain, graph):
     return nmi_value.score
 
 
+data = []
+
 if __name__ == "__main__":
-    G = nx.karate_club_graph()
-    G = utils.benchmark_graph()
+    for i in range(1, 2):
+        try:
+            n = 100 * i
+            tau1 = 2.0
+            tau2 = 3.5
+            mu = min(0.05 * i, 0.7)
+            min_community = max(10, n // 50)
+            max_community = max(20, n // 20)
+            min_degree = max(10, n // 100)
+            max_degree = min(50, n // 10)
 
-    # Louvain Algorithm
-    louvain_communities = algorithms.louvain(G)
+            random.seed(42)
+            try:
+                G = LFR_benchmark_graph(
+                    n,
+                    tau1,
+                    tau2,
+                    mu,
+                    min_degree=min_degree,
+                    max_degree=max_degree,
+                    min_community=min_community,
+                    max_community=max_community,
+                    seed=42,
+                )
+            except Exception as e:
+                print(f"Failed to generate graph at iteration {i}: {e}")
+                continue
 
-    # Ga Visualization - Run the genetic algorithm with Max-Min Distance selection
-    (
-        best_partition,
-        deviations,
-        real_fitnesses,
-        random_fitnesses,
-        best_history,
-        avg_history,
-    ) = ga.genetic_algorithm(G, NUM_GENERATIONS, POPULATION_SIZE)
+            # Louvain Algorithm
+            louvain_communities = algorithms.louvain(G)
 
-    # Visualize GA x Louvain
-    nmi_score = compute_nmi(best_partition, louvain_communities, G)
-    pl.visualize_comparison(G, best_partition, louvain_communities, nmi_score)
+            # Ga Visualization - Run the genetic algorithm with Max-Min Distance selection
+            (
+                best_partition,
+                deviations,
+                real_fitnesses,
+                random_fitnesses,
+                best_history,
+                avg_history,
+            ) = ga.genetic_algorithm(G, NUM_GENERATIONS, POPULATION_SIZE)
+
+            # Visualize GA x Louvain
+            nmi_score = compute_nmi(best_partition, louvain_communities, G)
+            pl.visualize_comparison(
+                G, best_partition, louvain_communities, nmi_score, f"gen_{i}"
+            )
+
+            # Save information in the DataFrame
+            for generation in range(NUM_GENERATIONS):
+                data.append(
+                    {
+                        "iteration": i,
+                        "nodes_num": n,
+                        "tau1": tau1,
+                        "tau2": tau2,
+                        "mu": mu,
+                        "min_community": min_community,
+                        "max_community": max_community,
+                        "generation": generation,
+                        "best_history": best_history[generation],
+                        "avg_history": avg_history[generation],
+                        "nmi_score": nmi_score,
+                    }
+                )
+        except KeyboardInterrupt:
+            break
+
+    df = pd.DataFrame(data)
+    df.to_csv("generations_data.csv", index=False)
+    print("DataFrame saved to generations_data.csv")
 
     # =============================================================================================
     # Extras Visuzalitions
     # ==============================================================================================
-    # exit(0)
+    exit(0)
 
     pl.plot_fitness_history(best_history, avg_history)
     pl.visualize_all(G, best_partition)
