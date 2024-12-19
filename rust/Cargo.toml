@@ -6,4 +6,4 @@ edition = "2021"
 [dependencies]
 petgraph = "0.6"
 rand = "0.8"
-rayon = "1.5"
+rayon = "1.7"

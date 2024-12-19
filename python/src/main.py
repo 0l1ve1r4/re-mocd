@@ -9,7 +9,7 @@ from collections import defaultdict
 from cdlib import algorithms, evaluation, NodeClustering
 from networkx.generators.community import LFR_benchmark_graph
 
-NUM_GENERATIONS = 800
+NUM_GENERATIONS = 400
 POPULATION_SIZE = 100
 
 
@@ -54,6 +54,14 @@ if __name__ == "__main__":
                     max_community=max_community,
                     seed=42,
                 )
+
+                # Save edge list to a file
+                nx.write_edgelist(
+                    G,
+                    "/home/ol1ve1r4/Desktop/mocd/rust/src/mu-005.edgelist",
+                    delimiter=",",
+                )
+
             except Exception as e:
                 print(f"Failed to generate graph at iteration {i}: {e}")
                 continue
@@ -109,4 +117,3 @@ if __name__ == "__main__":
     pl.plot_fitness_history(best_history, avg_history)
     pl.visualize_all(G, best_partition)
     best_fitness = ga.calculate_objectives(G, best_partition)
-
