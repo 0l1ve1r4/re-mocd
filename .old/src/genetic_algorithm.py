@@ -91,6 +91,8 @@ def genetic_algorithm(graph, generations=80, population_size=100):
     
     real_population = generate_initial_population(graph, population_size)
     for generation in range(generations):
+        print(f"Geracao: {generation}" )
+
         with Pool() as pool:
             args = [(graph, partition) for partition in real_population]
             fitnesses = pool.starmap(calculate_objectives, args)

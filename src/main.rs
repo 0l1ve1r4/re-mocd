@@ -9,7 +9,7 @@ use std::path::Path;
 
 mod algorithm;
 
-const NUM_GENERATIONS: usize = 800;
+const NUM_GENERATIONS: usize = 100;
 const POPULATION_SIZE: usize = 100;
 
 fn read_graph(file_path: &str) -> UnGraph<(), ()> {
@@ -49,15 +49,8 @@ where
     Ok(io::BufReader::new(file).lines())
 }
 
-fn print_graph(graph : Graph<(), (), Undirected>){
-    for edge in graph.edge_indices() {
-        let (source, target) = graph.edge_endpoints(edge).unwrap();
-        println!("Edge: {} -> {}", source.index(), target.index());
-    }
-}
-
 fn main() {
-    let mut file_path = "/home/ol1ve1r4/Desktop/mocd/rust/src/mu-005.edgelist";
+    let file_path = "/home/ol1ve1r4/Desktop/mocd/src/graphs/artificials/mu-9.0.edgelist";
     let mut data: Vec<String> = Vec::new();
     let graph: Graph<(), (), Undirected> = 
     read_graph(&file_path);
@@ -65,10 +58,10 @@ fn main() {
     let start: Instant = std::time::Instant::now();
 
     let (
-        best_partition,
-        deviations,
-        real_fitnesses,
-        random_fitnesses,
+        _,
+        _,
+        _,
+        _,
         best_history,
         avg_history,
     ) = algorithm::genetic_algorithm(&graph, NUM_GENERATIONS, POPULATION_SIZE);

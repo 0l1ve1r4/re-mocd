@@ -5,6 +5,15 @@ import pandas as pd
 import networkx as nx
 import genetic_algorithm as ga
 
+"""
+1. 10 runs variar o mu 0.1 - 0.9
+    - calcular a media do nmi par a par das 10 execuções para cada algoritmo
+    - plot grafico de linha com intervalo de confiança y - nmi media, x - mu
+    
+aumentar mu 
+
+"""
+
 from collections import defaultdict
 from cdlib import algorithms, evaluation, NodeClustering
 from networkx.generators.community import LFR_benchmark_graph
@@ -32,10 +41,10 @@ data = []
 if __name__ == "__main__":
     for i in range(1, 2):
         try:
-            n = 100 * i
+            n = 4000 * i
             tau1 = 2.0
             tau2 = 3.5
-            mu = min(0.05 * i, 0.7)
+            mu = 0.9
             min_community = max(10, n // 50)
             max_community = max(20, n // 20)
             min_degree = max(10, n // 100)
@@ -58,10 +67,10 @@ if __name__ == "__main__":
                 # Save edge list to a file
                 nx.write_edgelist(
                     G,
-                    "/home/ol1ve1r4/Desktop/mocd/rust/src/mu-005.edgelist",
+                    "/home/ol1ve1r4/Desktop/mocd/src/mu-9.0.edgelist",
                     delimiter=",",
                 )
-
+                
             except Exception as e:
                 print(f"Failed to generate graph at iteration {i}: {e}")
                 continue

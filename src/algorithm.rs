@@ -9,19 +9,17 @@ use std::f64::INFINITY;
 type Partition = HashMap<NodeIndex, usize>;
 
 /// Calculates the modularity, intra-community edges, and inter-community edges.
-fn calculate_objectives(
-    graph: &Graph<(), (), Undirected>,
-    partition: &Partition,
-) -> (f64, f64, f64) {
-    let total_edges = graph.edge_count() as f64;
+fn calculate_objectives(graph: &Graph<(), (), Undirected>, partition: &Partition,
+    ) -> (f64, f64, f64) {
+    
+    let total_edges: f64 = graph.edge_count() as f64;
     if total_edges == 0.0 {
         return (0.0, 0.0, 0.0);
     }
 
-    let mut intra_sum = 0.0;
-    let mut inter = 0.0;
-    let total_edges_doubled = 2.0 * total_edges;
+    let total_edges_doubled: f64 = 2.0 * total_edges;
 
+    // Build communities
     let mut communities: HashMap<usize, HashSet<NodeIndex>> = HashMap::new();
     for (&node, &community) in partition.iter() {
         communities
@@ -30,36 +28,49 @@ fn calculate_objectives(
             .insert(node);
     }
 
-    for community_nodes in communities.values() {
-        let mut community_edges = 0.0;
-        let mut community_degree = 0.0;
+    // Collect communities into a Vec for parallel processing
+    let community_vec: Vec<_> = communities.values().collect();
 
-        for &node in community_nodes {
-            let neighbors = graph.neighbors(node);
-            let node_degree = neighbors.clone().count() as f64;
-            community_degree += node_degree;
+    // Parallel processing of communities
+    let (intra_sum, inter_sum) = community_vec
+        .par_iter()
+        .map(|community_nodes| {
+            let mut community_edges = 0.0;
+            let mut community_degree = 0.0;
 
-            for neighbor in neighbors {
-                if community_nodes.contains(&neighbor) {
-                    community_edges += 1.0;
+            for &node in *community_nodes {
+                let neighbors = graph.neighbors(node);
+                let node_degree = neighbors.clone().count() as f64;
+                community_degree += node_degree;
+
+                for neighbor in neighbors {
+                    if community_nodes.contains(&neighbor) {
+                        community_edges += 1.0;
+                    }
                 }
             }
-        }
 
-        // Adjust for undirected graph
-        community_edges /= 2.0;
-        intra_sum += community_edges;
+            // Adjust for undirected graph
+            community_edges /= 2.0;
 
-        let normalized_degree = community_degree / total_edges_doubled;
-        inter += normalized_degree * normalized_degree;
-    }
+            let normalized_degree: f64 = community_degree / total_edges_doubled;
+            let inter: f64 = normalized_degree * normalized_degree;
 
-    let intra = 1.0 - (intra_sum / total_edges);
-    let mut modularity = 1.0 - intra - inter;
+            (community_edges, inter)
+        })
+        .reduce(
+            || (0.0, 0.0),                // Identity
+            |(sum_edges1, sum_inter1), (sum_edges2, sum_inter2)| {
+                (sum_edges1 + sum_edges2, sum_inter1 + sum_inter2)
+            },
+        );
+
+    let intra: f64 = 1.0 - (intra_sum / total_edges);
+    let mut modularity: f64 = 1.0 - intra - inter_sum;
     modularity = modularity.clamp(-1.0, 1.0);
 
-    (modularity, intra, inter)
-}
+    (modularity, intra, inter_sum)
+}   
 
 /// Generates the initial population of random partitions.
 fn generate_initial_population(
@@ -176,16 +187,18 @@ pub fn genetic_algorithm(
 ) {
     let mut best_fitness_history = Vec::with_capacity(generations);
     let mut avg_fitness_history = Vec::with_capacity(generations);
-
+    
     // Generate initial population
     let mut population = generate_initial_population(graph, population_size);
 
-    for _ in 0..generations {
-        // Evaluate fitnesses in parallel
+    for _generation in 0..generations {
+        
+        // println!("Generation: {}", generation);
+
         let fitnesses: Vec<(f64, f64, f64)> = population
-            .par_iter()
-            .map(|partition| calculate_objectives(graph, partition))
-            .collect();
+        .par_iter()
+        .map(|partition| calculate_objectives(graph, partition)) // Use non-parallelized inner function
+        .collect();
 
         // Record best and average fitness
         let modularity_values: Vec<f64> = fitnesses.iter().map(|f| f.0).collect();
@@ -238,7 +251,10 @@ pub fn genetic_algorithm(
 
     let mut random_population = generate_initial_population(&random_graph, population_size);
 
-    for _ in 0..generations {
+    for _generation in 0..generations {
+
+        // println!("Generation: {}", generation);
+
         // Evaluate fitness
         let fitnesses: Vec<(f64, f64, f64)> = random_population
             .par_iter()
