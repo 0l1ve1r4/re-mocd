@@ -3,6 +3,10 @@ name = "mocd"
 version = "0.1.0"
 edition = "2021"
 
+
+[profile.release]
+debug = true
+
 [dependencies]
 petgraph = "0.6"
 rand = "0.8"

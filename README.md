@@ -1,7 +1,8 @@
+# Multi-Objective Community Detection
 
-visulize time wasted in python:
 
+- Profiling the code:
+ 
 ```bash
-python3 -m cProfile -o output.pyprof python/src/main.py
-snakeviz output.pyprof
+cargo flamegraph
 ```
