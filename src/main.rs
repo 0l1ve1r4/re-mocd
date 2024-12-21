@@ -1,19 +1,18 @@
-use petgraph::graph::Graph;
 use petgraph::Undirected;
+use petgraph::graph::{Graph, UnGraph};
+
 use std::fs::File;
-use std::io::Write;
-use std::time::Instant;
-use petgraph::graph::UnGraph;
-use std::io::{self, BufRead};
 use std::path::Path;
+use std::time::Instant;
+use std::io::{self, BufRead, Write};
 
 mod algorithm;
 
-const NUM_GENERATIONS: usize = 100;
-const POPULATION_SIZE: usize = 20;
+const NUM_GENERATIONS: usize = 400;
+const POPULATION_SIZE: usize = 100;
 
 fn read_graph(file_path: &str) -> UnGraph<(), ()> {
-    let mut graph = Graph::new_undirected();
+    let mut graph: Graph<(), (), Undirected> = Graph::new_undirected();
 
     let mut node_indices = std::collections::HashMap::new();
 
@@ -50,11 +49,15 @@ where
 }
 
 fn main() {
-    let file_path = "/home/ol1ve1r4/Desktop/mocd/src/graphs/artificials/mu-9.0.edgelist";
+    let start: Instant = std::time::Instant::now();
+
+    let file_path = "/home/ol1ve1r4/Desktop/mocd/src/graphs/artificials/karate.edgelist";
     let mut data: Vec<String> = Vec::new();
     let graph: Graph<(), (), Undirected> = 
     read_graph(&file_path);
         
+    println!("Reading elapsed: {:.2?}", start.elapsed());
+
     let start: Instant = std::time::Instant::now();
 
     let (
