@@ -26,7 +26,7 @@ if __name__ == "__main__":
             seed=42,
         )
         
-        save_path = (f"src/graphs/artificials/mu-{mu}.edgelist") 
+        save_path = (f"../graphs/artificials/mu-{mu}.edgelist") 
         nx.write_edgelist(
             G,
             save_path,
