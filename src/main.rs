@@ -9,8 +9,8 @@ use std::path::Path;
 
 mod algorithm;
 
-const NUM_GENERATIONS: usize = 800;
-const POPULATION_SIZE: usize = 100;
+const NUM_GENERATIONS: usize = 100;
+const POPULATION_SIZE: usize = 20;
 
 fn read_graph(file_path: &str) -> UnGraph<(), ()> {
     let mut graph = Graph::new_undirected();

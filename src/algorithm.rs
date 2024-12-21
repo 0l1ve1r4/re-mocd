@@ -2,16 +2,15 @@ use petgraph::graph::{Graph, NodeIndex};
 use petgraph::Undirected;
 use rand::prelude::*;
 use rayon::prelude::*;
-use std::collections::{HashMap, HashSet};
+
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::f64::INFINITY;
 
 // Type alias
 type Partition = HashMap<NodeIndex, usize>;
 
 /// Calculates the modularity, intra-community edges, and inter-community edges.
-fn calculate_objectives(graph: &Graph<(), (), Undirected>, partition: &Partition,
-    ) -> (f64, f64, f64) {
-    
+fn calculate_objectives(graph: &Graph<(), (), Undirected>, partition: &Partition) -> (f64, f64, f64) {
     let total_edges: f64 = graph.edge_count() as f64;
     if total_edges == 0.0 {
         return (0.0, 0.0, 0.0);
@@ -20,12 +19,9 @@ fn calculate_objectives(graph: &Graph<(), (), Undirected>, partition: &Partition
     let total_edges_doubled: f64 = 2.0 * total_edges;
 
     // Build communities
-    let mut communities: HashMap<usize, HashSet<NodeIndex>> = HashMap::new();
+    let mut communities: HashMap<usize, HashSet<NodeIndex>> = HashMap::default();
     for (&node, &community) in partition.iter() {
-        communities
-            .entry(community)
-            .or_insert_with(HashSet::new)
-            .insert(node);
+        communities.entry(community).or_default().insert(node);
     }
 
     // Collect communities into a Vec for parallel processing
@@ -58,19 +54,16 @@ fn calculate_objectives(graph: &Graph<(), (), Undirected>, partition: &Partition
 
             (community_edges, inter)
         })
-        .reduce(
-            || (0.0, 0.0),                // Identity
-            |(sum_edges1, sum_inter1), (sum_edges2, sum_inter2)| {
-                (sum_edges1 + sum_edges2, sum_inter1 + sum_inter2)
-            },
-        );
+        .reduce(|| (0.0, 0.0), |(sum_edges1, sum_inter1), (sum_edges2, sum_inter2)| {
+            (sum_edges1 + sum_edges2, sum_inter1 + sum_inter2)
+        });
 
     let intra: f64 = 1.0 - (intra_sum / total_edges);
     let mut modularity: f64 = 1.0 - intra - inter_sum;
     modularity = modularity.clamp(-1.0, 1.0);
 
     (modularity, intra, inter_sum)
-}   
+}
 
 /// Generates the initial population of random partitions.
 fn generate_initial_population(
@@ -155,12 +148,12 @@ fn generate_random_graph(node_count: usize, edge_count: usize) -> Graph<(), (), 
     let mut graph = Graph::<(), (), Undirected>::new_undirected();
     let mut rng = thread_rng();
 
-    // Adiciona os nós
+    // Add nodes
     for _ in 0..node_count {
         graph.add_node(());
     }
 
-    // Adiciona arestas aleatórias
+    // Add random edges
     for _ in 0..edge_count {
         let a = rng.gen_range(0..node_count);
         let b = rng.gen_range(0..node_count);
@@ -191,14 +184,11 @@ pub fn genetic_algorithm(
     // Generate initial population
     let mut population = generate_initial_population(graph, population_size);
 
-    for _generation in 0..generations {
-        
-        // println!("Generation: {}", generation);
-
+    for _ in 0..generations {
         let fitnesses: Vec<(f64, f64, f64)> = population
-        .par_iter()
-        .map(|partition| calculate_objectives(graph, partition)) // Use non-parallelized inner function
-        .collect();
+            .par_iter()
+            .map(|partition| calculate_objectives(graph, partition)) // Use non-parallelized inner function
+            .collect();
 
         // Record best and average fitness
         let modularity_values: Vec<f64> = fitnesses.iter().map(|f| f.0).collect();
@@ -231,10 +221,10 @@ pub fn genetic_algorithm(
         .map(|partition| calculate_objectives(graph, partition))
         .collect();
 
-        let best_modularity = fitnesses
+    let best_modularity = fitnesses
         .iter()
         .map(|f| f.0)
-        .fold(f64::NEG_INFINITY, |a, b| a.max(b));
+        .fold(f64::NEG_INFINITY, f64::max);
 
     let pareto_front: Vec<&Partition> = population
         .iter()
@@ -251,10 +241,7 @@ pub fn genetic_algorithm(
 
     let mut random_population = generate_initial_population(&random_graph, population_size);
 
-    for _generation in 0..generations {
-
-        // println!("Generation: {}", generation);
-
+    for _ in 0..generations {
         // Evaluate fitness
         let fitnesses: Vec<(f64, f64, f64)> = random_population
             .par_iter()
@@ -285,7 +272,7 @@ pub fn genetic_algorithm(
     let random_best_modularity = random_fitnesses
         .iter()
         .map(|f| f.0)
-        .fold(f64::NEG_INFINITY, |a, b| a.max(b));
+        .fold(f64::NEG_INFINITY, f64::max);
 
     let random_pareto_front: Vec<&(f64, f64, f64)> = random_fitnesses
         .iter()

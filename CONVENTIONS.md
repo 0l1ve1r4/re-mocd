@@ -49,6 +49,4 @@
   - `feat` [main.rs]: A new feature
   - `fix` [algorithm.rs][main.rs]: A bug fix
   - `docs`: Documentation updates
-  - `style`: Code style changes (e.g., formatting)
-  - `refactor`: Code refactoring
-  - `test`: Adding or updating tests
+  - `refactor` [main.rs]: Code refactoring
