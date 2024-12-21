@@ -9,7 +9,7 @@ use std::path::Path;
 
 mod algorithm;
 
-const NUM_GENERATIONS: usize = 100;
+const NUM_GENERATIONS: usize = 800;
 const POPULATION_SIZE: usize = 100;
 
 fn read_graph(file_path: &str) -> UnGraph<(), ()> {
@@ -82,7 +82,7 @@ fn main() {
     let mut file = File::create("generations_data.csv").expect("Unable to create file");
     writeln!(
         file,
-        "iteration,nodes_num,tau1,tau2,mu,min_community,max_community,generation,best_history,avg_history,nmi_score"
+        "generation,best_fitness,avg"
     )
     .unwrap();
     for line in data {
