@@ -7,11 +7,13 @@ use petgraph::Undirected;
 use rand::prelude::*;
 use rayon::prelude::*;
 use std::f64::INFINITY;
+use std::fs::File;
+use std::io::Write;
 
 use crate::operators;
 use crate::operators::Partition;
 
-const OUTPUT_PATH: &str = "src/graphs/output/output.edgelist";
+const OUTPUT_PATH: &str = "src/graphs/output/output.json";
 
 /// Calculates the distance between two fitness tuples (for the final Max-Min selection).
 fn calculate_distance(fitness1: &(f64, f64, f64), fitness2: &(f64, f64, f64)) -> f64 {
@@ -41,7 +43,7 @@ fn generate_random_graph(node_count: usize, edge_count: usize) -> Graph<(), (), 
     graph
 }
 
-/// The main genetic algorithm function with parallel objective computation and caching.
+
 pub fn genetic_algorithm(
     graph: &Graph<(), (), Undirected>,
     generations: usize,
@@ -196,10 +198,14 @@ pub fn genetic_algorithm(
         }
     }
 
-    let _ = operators::
-            write_edgefile(best_partition, 
-            OUTPUT_PATH);
+    // Save the best partition to a file
+    if let Some(best_partition) = best_partition {
+        let json_string = operators::partition_to_json(&best_partition);
+        let mut file = File::create(OUTPUT_PATH).expect("Unable to create file");
+        write!(file, "{}", json_string).expect("Unable to write data");
+    }
 
+    // Return results
     (
         deviations,
         fitnesses,

@@ -14,3 +14,4 @@ petgraph = "0.6"
 rand = "0.8"
 rayon = "1.7"
 rustc-hash = { version = "2.1", default-features = true }
+serde_json = "1.0.0"

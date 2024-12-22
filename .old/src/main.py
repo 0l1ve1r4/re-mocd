@@ -38,38 +38,17 @@ def compute_nmi(partition_ga, partition_louvain, graph):
 
 data = []
 
+def convert_edgelist_to_graph(edgelist_file):
+    """Convert an edgelist to a NetworkX graph."""
+    G = nx.read_edgelist(edgelist_file, delimiter=',', nodetype=int)
+    return G
+
+
 if __name__ == "__main__":
     for i in range(1, 2):
         try:
-            n = 4000 * i
-            tau1 = 2.0
-            tau2 = 3.5
-            mu = 0.9
-            min_community = max(10, n // 50)
-            max_community = max(20, n // 20)
-            min_degree = max(10, n // 100)
-            max_degree = min(50, n // 10)
-
-            random.seed(42)
             try:
-                G = LFR_benchmark_graph(
-                    n,
-                    tau1,
-                    tau2,
-                    mu,
-                    min_degree=min_degree,
-                    max_degree=max_degree,
-                    min_community=min_community,
-                    max_community=max_community,
-                    seed=42,
-                )
-
-                # Save edge list to a file
-                nx.write_edgelist(
-                    G,
-                    "/home/ol1ve1r4/Desktop/mocd/src/mu-9.0.edgelist",
-                    delimiter=",",
-                )
+                G = convert_edgelist_to_graph("/home/ol1ve1r4/Desktop/mocd/src/graphs/artificials/mu-0.1.edgelist")
                 
             except Exception as e:
                 print(f"Failed to generate graph at iteration {i}: {e}")
@@ -98,17 +77,9 @@ if __name__ == "__main__":
             for generation in range(NUM_GENERATIONS):
                 data.append(
                     {
-                        "iteration": i,
-                        "nodes_num": n,
-                        "tau1": tau1,
-                        "tau2": tau2,
-                        "mu": mu,
-                        "min_community": min_community,
-                        "max_community": max_community,
                         "generation": generation,
                         "best_history": best_history[generation],
                         "avg_history": avg_history[generation],
-                        "nmi_score": nmi_score,
                     }
                 )
         except KeyboardInterrupt:
