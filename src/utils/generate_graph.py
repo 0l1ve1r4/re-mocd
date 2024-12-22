@@ -9,10 +9,10 @@ import networkx as nx
 from networkx.generators.community import LFR_benchmark_graph as benchmark
 
 if __name__ == "__main__":
-    n = 4000 
+    n = 500 
     tau1 = 2.0
     tau2 = 3.5
-    mu = 0.4
+    mu = 0.3
     min_community = max(10, n // 50)
     max_community = max(20, n // 20)
     min_degree = max(10, n // 100)

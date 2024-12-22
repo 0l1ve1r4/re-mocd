@@ -5,8 +5,8 @@
 use petgraph::graph::Graph;
 use petgraph::Undirected;
 use rand::prelude::*;
-use std::f64::INFINITY;
 use rayon::prelude::*;
+use std::f64::INFINITY;
 
 use crate::operators;
 use crate::operators::Partition;
@@ -19,25 +19,19 @@ fn calculate_distance(fitness1: &(f64, f64, f64), fitness2: &(f64, f64, f64)) ->
 }
 
 /// Generates a random graph by adding edges between random node pairs.
-/// Optional optimization: check if an edge already exists before adding to avoid duplicates.
 fn generate_random_graph(node_count: usize, edge_count: usize) -> Graph<(), (), Undirected> {
     let mut graph = Graph::<(), (), Undirected>::new_undirected();
     let mut rng = thread_rng();
 
-    // Add nodes
     for _ in 0..node_count {
         graph.add_node(());
     }
 
-    // Add random edges (optional: track inserted edges to avoid duplicates).
+    // Add random edges
     for _ in 0..edge_count {
         let a = rng.gen_range(0..node_count);
         let b = rng.gen_range(0..node_count);
         if a != b {
-            // If you want to avoid duplicates:
-            // if !graph.contains_edge((a as u32).into(), (b as u32).into()) {
-            //     graph.add_edge((a as u32).into(), (b as u32).into(), ());
-            // }
             graph.add_edge((a as u32).into(), (b as u32).into(), ());
         }
     }
@@ -46,22 +40,22 @@ fn generate_random_graph(node_count: usize, edge_count: usize) -> Graph<(), (), 
 }
 
 /// The main genetic algorithm function with parallel objective computation and caching.
-pub fn genetic_algorithm(graph: &Graph<(), (), Undirected>,
+pub fn genetic_algorithm(
+    graph: &Graph<(), (), Undirected>,
     generations: usize,
-    population_size: usize,) -> (
-    Partition,
+    population_size: usize,
+) -> (
     Vec<(Partition, (f64, f64, f64), f64)>,
     Vec<(f64, f64, f64)>,
     Vec<(f64, f64, f64)>,
     Vec<f64>,
     Vec<f64>,
 ) {
-
     // Precompute degrees once for efficiency
     let node_degrees = operators::compute_node_degrees(graph);
     let mut best_fitness_history = Vec::with_capacity(generations);
     let mut avg_fitness_history = Vec::with_capacity(generations);
-    
+
     // 1. Generate initial population
     let mut population = operators::ga::generate_initial_population(graph, population_size);
 
@@ -69,7 +63,9 @@ pub fn genetic_algorithm(graph: &Graph<(), (), Undirected>,
     for _ in 0..generations {
         let fitnesses: Vec<(f64, f64, f64)> = population
             .par_iter()
-            .map(|partition| operators::modularity::calculate_objectives(graph, partition, &node_degrees))
+            .map(|partition| {
+                operators::modularity::calculate_objectives(graph, partition, &node_degrees)
+            })
             .collect();
 
         let modularity_values: Vec<f64> = fitnesses.iter().map(|f| f.0).collect();
@@ -105,7 +101,9 @@ pub fn genetic_algorithm(graph: &Graph<(), (), Undirected>,
     // Final evaluation for real network
     let fitnesses: Vec<(f64, f64, f64)> = population
         .par_iter()
-        .map(|partition| operators::modularity::calculate_objectives(graph, partition, &node_degrees))
+        .map(|partition| {
+            operators::modularity::calculate_objectives(graph, partition, &node_degrees)
+        })
         .collect();
 
     let best_modularity = fitnesses
@@ -128,11 +126,18 @@ pub fn genetic_algorithm(graph: &Graph<(), (), Undirected>,
     // Precompute degrees for random graph
     let random_degrees = operators::compute_node_degrees(&random_graph);
 
-    let mut random_population = operators::ga::generate_initial_population(&random_graph, population_size);
+    let mut random_population =
+        operators::ga::generate_initial_population(&random_graph, population_size);
     for _ in 0..generations {
         let fitnesses: Vec<(f64, f64, f64)> = random_population
             .par_iter()
-            .map(|partition| operators::modularity::calculate_objectives(&random_graph, partition, &random_degrees))
+            .map(|partition| {
+                operators::modularity::calculate_objectives(
+                    &random_graph,
+                    partition,
+                    &random_degrees,
+                )
+            })
             .collect();
 
         random_population = operators::ga::selection(&random_population, &fitnesses);
@@ -155,7 +160,9 @@ pub fn genetic_algorithm(graph: &Graph<(), (), Undirected>,
     // Final evaluation for random network
     let random_fitnesses: Vec<(f64, f64, f64)> = random_population
         .par_iter()
-        .map(|partition| operators::modularity::calculate_objectives(&random_graph, partition, &random_degrees))
+        .map(|partition| {
+            operators::modularity::calculate_objectives(&random_graph, partition, &random_degrees)
+        })
         .collect();
 
     let random_best_modularity = random_fitnesses
@@ -187,8 +194,11 @@ pub fn genetic_algorithm(graph: &Graph<(), (), Undirected>,
         }
     }
 
+    let _ = operators::
+            write_edgefile(best_partition, 
+            "output.edgelist");
+
     (
-        best_partition.unwrap(),
         deviations,
         fitnesses,
         random_fitnesses,

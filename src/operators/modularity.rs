@@ -1,75 +1,78 @@
 /// This Source Code Form is subject to the terms of The GNU General Public License v3.0
 /// Copyright 2024 - Guilherme Santos. If a copy of the GPL3 was not distributed with this
 /// file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
-
+use crate::operators::Partition;
 use petgraph::graph::{Graph, NodeIndex};
 use petgraph::Undirected;
-
-use crate::operators::Partition;
-use rustc_hash::FxHashMap as HashMap;
 use rayon::prelude::*;
+use rustc_hash::FxHashMap as HashMap;
 
+/// Calculates modularity along with intra- and inter-community metrics.
 pub fn calculate_objectives(
     graph: &Graph<(), (), Undirected>,
     partition: &Partition,
-    node_degrees: &[f64]
+    node_degrees: &[f64],
 ) -> (f64, f64, f64) {
-    let total_edges: f64 = graph.edge_count() as f64;
+    let total_edges = graph.edge_count() as f64;
     if total_edges == 0.0 {
         return (0.0, 0.0, 0.0);
     }
+
     let total_edges_doubled: f64 = 2.0 * total_edges;
 
-    // Convert partition to a Vec-based membership for O(1) lookups:
-    // membership[node.index()] = community_id
+    // Create a quick membership lookup so membership[node.index()] = community_id. O(1)
     let mut membership = vec![0; graph.node_count()];
-    for (&node, &comm) in partition {
-        membership[node.index()] = comm;
+    for (&node_idx, &community_id) in partition.iter() {
+        membership[node_idx.index()] = community_id;
     }
 
-    // Build sets of nodes by community
+    // Group nodes by community for parallel iteration.
     let mut communities: HashMap<usize, Vec<NodeIndex>> = HashMap::default();
-    for (&node, &community) in partition.iter() {
-        communities.entry(community).or_default().push(node);
+    for (&node_idx, &community_id) in partition.iter() {
+        communities.entry(community_id).or_default().push(node_idx);
     }
+    let community_vectors: Vec<_> = communities.values().collect();
 
-    let community_vec: Vec<_> = communities.values().collect();
-
-    // Parallel processing of communities
-    let (intra_sum, inter_sum) = community_vec
+    // Compute intra-community edges and sum of degrees per community in parallel.
+    let (sum_intra_edges, sum_inter_value) = community_vectors
         .par_iter()
-        .map(|community_nodes| {
+        .map(|nodes_in_comm| {
             let mut community_edges = 0.0;
-            let mut community_degree_sum = 0.0;
+            let mut degree_sum = 0.0;
 
-            // Summation for edges within the same community
-            for &node in community_nodes.iter() {
-                community_degree_sum += node_degrees[node.index()];
-                for neighbor in graph.neighbors(node) {
-                    // Only count edge if neighbor is in the same community
-                    if membership[neighbor.index()] == membership[node.index()] {
+            for &node_idx in nodes_in_comm.iter() {
+                degree_sum += node_degrees[node_idx.index()];
+                for neighbor_idx in graph.neighbors(node_idx) {
+                    // Only count edges within the same community.
+                    if membership[neighbor_idx.index()] == membership[node_idx.index()] {
                         community_edges += 1.0;
                     }
                 }
             }
 
-            // Adjust for undirected graph (each edge counted twice)
-            community_edges /= 2.0;
-            let normalized_degree = community_degree_sum / total_edges_doubled;
-            let inter = normalized_degree * normalized_degree;
+            // Divide by 2.0 because edges are undirected (counted twice).
+            community_edges *= 0.5; // Multiplication is less cpu costly.
 
-            (community_edges, inter)
+            // Compute a portion for "inter" (inter-community measure).
+            let normalized_deg = degree_sum / total_edges_doubled;
+            let inter_part = normalized_deg * normalized_deg;
+
+            (community_edges, inter_part)
         })
         .reduce(
+            // Identity function that starts sums at (0.0, 0.0).
             || (0.0, 0.0),
-            |(sum_edges1, sum_inter1), (sum_edges2, sum_inter2)| {
-                (sum_edges1 + sum_edges2, sum_inter1 + sum_inter2)
+            // Accumulate partial results into a total.
+            |(edges_acc, inter_acc), (edges_part, inter_part)| {
+                (edges_acc + edges_part, inter_acc + inter_part)
             },
         );
 
-    let intra = 1.0 - (intra_sum / total_edges);
-    let mut modularity = 1.0 - intra - inter_sum;
+    let intra_value: f64 = 1.0 - (sum_intra_edges / total_edges);
+
+    // Modularity is capped between -1.0 and 1.0.
+    let mut modularity: f64 = 1.0 - intra_value - sum_inter_value;
     modularity = modularity.clamp(-1.0, 1.0);
 
-    (modularity, intra, inter_sum)
+    (modularity, intra_value, sum_inter_value)
 }

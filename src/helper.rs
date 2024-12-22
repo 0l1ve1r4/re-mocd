@@ -80,3 +80,4 @@ pub fn debug(reading_time: Duration, algorithm_time: Duration) {
     println!("- Algorithm time: {:?}", algorithm_time);
 
 }
+

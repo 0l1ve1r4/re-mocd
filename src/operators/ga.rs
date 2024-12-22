@@ -1,7 +1,6 @@
 /// This Source Code Form is subject to the terms of The GNU General Public License v3.0
 /// Copyright 2024 - Guilherme Santos. If a copy of the GPL3 was not distributed with this
 /// file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
-
 use petgraph::graph::{Graph, NodeIndex};
 use petgraph::Undirected;
 use rand::prelude::*;
@@ -69,10 +68,7 @@ pub fn mutate(partition: &mut Partition, graph: &Graph<(), (), Undirected>) {
 }
 
 /// Selects the top half of the population based on modularity.
-pub fn selection(
-    population: &[Partition],
-    fitnesses: &[(f64, f64, f64)],
-) -> Vec<Partition> {
+pub fn selection(population: &[Partition], fitnesses: &[(f64, f64, f64)]) -> Vec<Partition> {
     let mut pop_fitness: Vec<(&Partition, f64)> = population
         .iter()
         .zip(fitnesses.iter().map(|f| f.0))

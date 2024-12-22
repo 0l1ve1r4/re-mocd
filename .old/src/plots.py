@@ -8,6 +8,7 @@ import math
 import random
 
 
+
 def visualize_all(graph, partition):
     fig, axs = plt.subplots(1, 3, figsize=(18, 6))
     pos = nx.spring_layout(graph)

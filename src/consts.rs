@@ -2,5 +2,5 @@
 // Copyright 2024 - Guilherme Santos. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
 
-pub const NUM_GENERATIONS: usize = 300;
-pub const POPULATION_SIZE: usize = 10;
+pub const NUM_GENERATIONS: usize = 800;
+pub const POPULATION_SIZE: usize = 100;

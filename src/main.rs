@@ -46,7 +46,7 @@ fn main() -> () {
     let reading_time: Duration = start.elapsed();
 
     let start: Instant = Instant::now();
-    let (_, 
+    let (
         _, 
         _, 
         _,
@@ -61,6 +61,5 @@ fn main() -> () {
     }
 
     helper::save_data(best_history, avg_history,algorithm_time, consts::NUM_GENERATIONS);
-
    
 }
