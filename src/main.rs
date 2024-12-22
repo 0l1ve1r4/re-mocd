@@ -12,6 +12,7 @@ use std::time::{Duration, Instant};
 mod algorithm;
 mod helper;
 mod consts;
+mod operators;
 
 fn main() -> () {
     let args: Vec<String> = env::args().collect();
