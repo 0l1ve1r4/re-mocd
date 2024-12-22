@@ -11,7 +11,7 @@ use petgraph::graph::{Graph, UnGraph};
 use std::fs::File;
 use std::time::Duration;
 
-const SAVE_FILE_NAME:  &str = "mocd_output.csv";
+const SAVE_FILE_NAME:  &str = "src/graphs/output/mocd_output.csv";
 
 pub fn read_graph(file_path: &str) -> UnGraph<(), ()> {
     let mut graph: Graph<(), (), Undirected> = Graph::new_undirected();

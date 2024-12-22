@@ -11,6 +11,8 @@ use std::f64::INFINITY;
 use crate::operators;
 use crate::operators::Partition;
 
+const OUTPUT_PATH: &str = "src/graphs/output/output.edgelist";
+
 /// Calculates the distance between two fitness tuples (for the final Max-Min selection).
 fn calculate_distance(fitness1: &(f64, f64, f64), fitness2: &(f64, f64, f64)) -> f64 {
     let intra_diff = fitness1.1 - fitness2.1;
@@ -196,7 +198,7 @@ pub fn genetic_algorithm(
 
     let _ = operators::
             write_edgefile(best_partition, 
-            "output.edgelist");
+            OUTPUT_PATH);
 
     (
         deviations,

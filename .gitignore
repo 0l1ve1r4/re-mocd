@@ -2,5 +2,4 @@
 .vscode
 temp.txt
 myenv/
-*.csv
 temp
