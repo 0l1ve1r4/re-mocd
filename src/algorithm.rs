@@ -1,9 +1,8 @@
 use rustc_hash::FxHashMap as HashMap;
-use std::collections::HashSet;
+use rustc_hash::FxHashSet as HashSet;
 use rand::Rng;
 use rand::seq::SliceRandom;
 use rayon::prelude::*;
-
 
 use crate::graph::{
     Graph,
@@ -20,48 +19,66 @@ pub struct Metrics {
     inter: f64,
 }
 
-pub fn calculate_objectives(graph: &Graph, partition: &Partition) -> Metrics {
-    let total_edges = graph.edges.len() as f64;
-    if total_edges == 0.0 {
+impl Metrics {
+    pub fn default() -> Self{
         return Metrics {
             modularity: 0.0,
             intra: 0.0,
             inter: 0.0,
         };
     }
+}
 
-    let mut communities: HashMap<CommunityId, HashSet<NodeId>> = HashMap::default();
-    for (node, community) in partition {
-        communities
-            .entry(*community)
-            .or_insert_with(HashSet::new)
-            .insert(*node);
+pub fn calculate_objectives(graph: &Graph, partition: &Partition, degrees: HashMap<i32, usize>) -> Metrics {
+    let total_edges = graph.edges.len() as f64;
+    if total_edges == 0.0 {
+        return Metrics::default();
     }
 
-    let mut intra_sum = 0.0;
-    let mut inter = 0.0;
+    // Build communities from the partition
+    let mut communities: HashMap<CommunityId, HashSet<NodeId>> = HashMap::default();
+    for (&node, &community) in partition {
+        communities
+            .entry(community)
+            .or_insert_with(HashSet::default)
+            .insert(node);
+    }
+
     let total_edges_doubled = 2.0 * total_edges;
-
-    for community_nodes in communities.values() {
-        let mut community_edges = 0.0;
-        let mut community_degree = 0.0;
-
-        for &node in community_nodes {
-            let node_degree = graph.neighbors(&node).len() as f64;
-            community_degree += node_degree;
-
-            for neighbor in graph.neighbors(&node) {
-                if community_nodes.contains(&neighbor) {
-                    community_edges += 1.0;
+    let (intra_sum, inter) = communities.par_iter().fold(
+        || (0.0, 0.0), // Initialize accumulators for each thread
+        |(mut intra_acc, mut inter_acc), (_, community_nodes)| {
+            let mut community_edges = 0.0;
+            let mut community_degree = 0.0;
+    
+            for &node in community_nodes {
+                // Use precomputed degree
+                let node_degree = degrees.get(&node).copied().unwrap_or(0) as f64;
+                community_degree += node_degree;
+    
+                // Iterate through neighbors once
+                for neighbor in graph.neighbors(&node) {
+                    if community_nodes.contains(&neighbor) {
+                        community_edges += 1.0;
+                    }
                 }
             }
-        }
-
-        community_edges /= 2.0;
-        intra_sum += community_edges;
-        let normalized_degree = community_degree / total_edges_doubled;
-        inter += normalized_degree.powi(2);
-    }
+    
+            // Avoid double counting by dividing by 2
+            community_edges /= 2.0;
+            intra_acc += community_edges;
+    
+            // Calculate normalized degree
+            let normalized_degree = community_degree / total_edges_doubled;
+            inter_acc += normalized_degree.powi(2);
+    
+            (intra_acc, inter_acc)
+        },
+    )
+    .reduce(
+        || (0.0, 0.0), // Initialize accumulators for reduction
+        |a, b| (a.0 + b.0, a.1 + b.1), // Combine results from different threads
+    );
 
     let intra = 1.0 - (intra_sum / total_edges);
     let mut modularity = 1.0 - intra - inter;
@@ -72,6 +89,16 @@ pub fn calculate_objectives(graph: &Graph, partition: &Partition) -> Metrics {
         intra,
         inter,
     }
+}
+
+fn precompute_degress(graph: &Graph) -> HashMap<i32, usize> {
+    let degrees: HashMap<NodeId, usize> = graph
+    .nodes
+    .iter()
+    .map(|&node| (node, graph.neighbors(&node).len()))
+    .collect();
+
+    degrees
 }
 
 fn generate_initial_population(graph: &Graph, population_size: usize) -> Vec<Partition> {
@@ -124,13 +151,14 @@ fn mutate(partition: &mut Partition, graph: &Graph) {
 pub fn genetic_algorithm(graph: &Graph, generations: usize, population_size: usize, debug: bool) -> (Partition, Vec<f64>) {
     let mut rng = rand::thread_rng();
     let mut population = generate_initial_population(graph, population_size);
-    let mut best_fitness_history = Vec::with_capacity(generations);
+    let mut best_fitness_history = Vec::with_capacity(generations);    
+    let degress = precompute_degress(graph);
+
 
     for generation in 0..generations {
-        // Evaluate fitness in parallel
         let fitnesses: Vec<Metrics> = population
             .par_iter()
-            .map(|partition| calculate_objectives(graph, partition))
+            .map(|partition| calculate_objectives(graph, partition, degress.clone()))
             .collect();
 
         // Record best fitness
@@ -179,7 +207,7 @@ pub fn genetic_algorithm(graph: &Graph, generations: usize, population_size: usi
     let best_partition = population
         .into_iter()
         .max_by_key(|partition| {
-            let metrics = calculate_objectives(graph, partition);
+            let metrics = calculate_objectives(graph, partition, degress.clone());
             (metrics.modularity * 1000.0) as i64
         })
         .unwrap();
