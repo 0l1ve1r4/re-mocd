@@ -32,8 +32,8 @@ The **weight** attribute is optional. If not provided, it can be represented by 
 
 1. Clone the repository and navigate to the project folder:
    ```bash
-   git clone <repository_url>
-   cd <project_directory>
+   git clone https://github.com/0l1ve1r4/mocd
+   cd mocd
    ```
 
 2. Compile and run the algorithm with your edge list file:
