@@ -53,8 +53,6 @@ fn main() -> () {
     let start: Instant = Instant::now();
     let (
         _, 
-        _, 
-        _, 
         best_history, 
         avg_history
     ) = algorithm::genetic_algorithm(
