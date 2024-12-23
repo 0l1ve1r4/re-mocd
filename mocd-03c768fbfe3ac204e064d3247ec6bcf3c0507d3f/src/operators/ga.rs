@@ -8,31 +8,19 @@ use rand::prelude::*;
 use crate::operators::Partition;
 
 /// Generates the initial population of random partitions.
-/// Generates the initial population of random partitions with controlled community sizes.
 pub fn generate_initial_population(
     graph: &Graph<(), (), Undirected>,
     population_size: usize,
 ) -> Vec<Partition> {
     let mut rng = thread_rng();
     let nodes: Vec<NodeIndex> = graph.node_indices().collect();
-    let num_nodes = nodes.len();
-    let max_initial_communities = (num_nodes as f64).sqrt() as usize; // Example heuristic
-    let min_initial_communities = 2;
     let mut population = Vec::with_capacity(population_size);
 
     for _ in 0..population_size {
-        // Randomly decide the number of communities for this partition
-        let num_communities = rng.gen_range(min_initial_communities..=max_initial_communities);
-        
-        // Shuffle nodes to assign them randomly to communities
-        let mut shuffled_nodes = nodes.clone();
-        shuffled_nodes.shuffle(&mut rng);
-        
-        let mut partition = Partition::default();
-        for (idx, node) in shuffled_nodes.iter().enumerate() {
-            let community_id = idx % num_communities;
-            partition.insert(*node, community_id as usize);
-        }
+        let partition: Partition = nodes
+            .iter()
+            .map(|&node| (node, rng.gen_range(0..nodes.len())))
+            .collect();
         population.push(partition);
     }
 
@@ -43,17 +31,21 @@ pub fn generate_initial_population(
 pub fn crossover(parent1: &Partition, parent2: &Partition) -> Partition {
     let mut rng = thread_rng();
     let keys: Vec<&NodeIndex> = parent1.keys().collect();
-    let mut child = Partition::default();
+    if keys.len() < 2 {
+        return parent1.clone();
+    }
 
-    for &node in keys {
-        // With 50% probability, inherit the community from parent1 or parent2
-        let inherit_from_parent2 = rng.gen_bool(0.5);
-        let community = if inherit_from_parent2 {
-            parent2[&node]
-        } else {
-            parent1[&node]
-        };
-        child.insert(node, community);
+    let len = keys.len();
+    let mut idxs = (0..len).collect::<Vec<_>>();
+    idxs.shuffle(&mut rng);
+    let i1 = idxs[0];
+    let i2 = idxs[1];
+    let idx1 = i1.min(i2);
+    let idx2 = i1.max(i2);
+
+    let mut child = parent1.clone();
+    for &key in &keys[idx1..=idx2] {
+        child.insert(*key, parent2[key]);
     }
 
     child

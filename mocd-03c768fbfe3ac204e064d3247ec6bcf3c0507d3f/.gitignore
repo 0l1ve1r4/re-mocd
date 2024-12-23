@@ -1,0 +1,7 @@
+/target
+.vscode
+temp.txt
+myenv/
+temp
+__pycache__
+*.png

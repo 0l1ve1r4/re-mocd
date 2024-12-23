@@ -36,6 +36,10 @@ pub fn genetic_algorithm(
     let mut best_fitness_history = Vec::with_capacity(generations);
     let mut avg_fitness_history = Vec::with_capacity(generations);
 
+    // Initialize global best tracking variables
+    let mut global_best_partition: Option<Partition> = None;
+    let mut global_best_fitness: f64 = f64::NEG_INFINITY;
+
     // 1. Generate initial population
     let mut population = operators::ga::generate_initial_population(graph, population_size);
 
@@ -57,6 +61,18 @@ pub fn genetic_algorithm(
 
         best_fitness_history.push(best_fitness);
         avg_fitness_history.push(avg_fitness);
+
+        // Update global best if current generation's best is better
+        if best_fitness > global_best_fitness {
+            global_best_fitness = best_fitness;
+            // Find the partition with the best fitness
+            global_best_partition = population
+                .iter()
+                .zip(fitnesses.iter())
+                .filter(|(_, fitness)| fitness.0 == best_fitness)
+                .map(|(p, _)| p.clone())
+                .next();
+        }
 
         // Selection
         population = operators::ga::selection(&population, &fitnesses);
@@ -84,33 +100,23 @@ pub fn genetic_algorithm(
                 avg_fitness
             );
         }
-
     }
 
-    // Final evaluation for real network
-    let fitnesses: Vec<(f64, f64, f64)> = population
-        .par_iter()
-        .map(|partition| {
-            operators::modularity::calculate_objectives(graph, partition, &node_degrees)
-        })
-        .collect();
-
-    // Select the best partition based on highest modularity
-    let (best_partition, best_fitness) = population
-        .iter()
-        .zip(fitnesses.iter())
-        .max_by(|a, b| a.1 .0.partial_cmp(&b.1 .0).unwrap())
-        .map(|(p, f)| ((*p).clone(), f.0))
-        .expect("Population is empty");
+    // Ensure that a global best partition has been found
+    let best_partition = global_best_partition.expect("No partition was found in the population.");
 
     // Save the best partition to a file
     let json_string = operators::partition_to_json(&best_partition);
     let mut file = File::create(OUTPUT_PATH).expect("Unable to create file");
     write!(file, "{}", json_string).expect("Unable to write data");
 
+    // Final evaluation fitnesses can be from the last generation
+
+    // Return results
     (
-        vec![(best_partition, fitnesses.into_iter().next().unwrap_or((0.0, 0.0, 0.0)), best_fitness)],
+        vec![(best_partition, (global_best_fitness, 0.0, 0.0), global_best_fitness)],
         best_fitness_history,
         avg_fitness_history,
     )
 }
+
