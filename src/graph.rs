@@ -1,4 +1,6 @@
-use std::collections::{HashMap, HashSet};
+use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxHashSet as HashSet;
+
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
@@ -19,8 +21,8 @@ impl Graph {
     pub fn new() -> Self {
         Graph {
             edges: Vec::new(),
-            nodes: HashSet::new(),
-            adjacency_list: HashMap::new(),
+            nodes: HashSet::default(),
+            adjacency_list: HashMap::default(),
         }
     }
 

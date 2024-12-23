@@ -1,4 +1,5 @@
-use std::collections::{HashMap, HashSet};
+use rustc_hash::FxHashMap as HashMap;
+use std::collections::HashSet;
 use rand::Rng;
 use rand::seq::SliceRandom;
 use rayon::prelude::*;
@@ -29,7 +30,7 @@ pub fn calculate_objectives(graph: &Graph, partition: &Partition) -> Metrics {
         };
     }
 
-    let mut communities: HashMap<CommunityId, HashSet<NodeId>> = HashMap::new();
+    let mut communities: HashMap<CommunityId, HashSet<NodeId>> = HashMap::default();
     for (node, community) in partition {
         communities
             .entry(*community)
