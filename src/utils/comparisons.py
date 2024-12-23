@@ -6,7 +6,7 @@ import numpy as np
 import json
 import sys
 
-mocd_json = "best_partition.json"
+mocd_json = "src/graphs/output/output.json"
 
 def visualize_comparison(graph: nx.Graph, partition_ga: dict, partition_two: NodeClustering, nmi_score: float, save_file_path: str = None):
     fig, axs = plt.subplots(1, 2, figsize=(16, 8))

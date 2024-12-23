@@ -10,11 +10,9 @@ mod graph;
 mod algorithm;
 
 use crate::graph::Graph;
+use crate::algorithm::genetic_algorithm;
 
-use crate::algorithm::{
-    genetic_algorithm,
-    calculate_objectives
-};
+const OUTPUT_PATH: &str = "src/graphs/output/output.json";
 
 fn parse_args(args: &Vec<String>) -> (&str, bool) {
     if args.len() < 2 {
@@ -45,30 +43,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ) = parse_args(&args);
 
     let start: Instant = Instant::now();
-
     let graph = Graph::from_edgelist(Path::new(file_path))?;
-
     let reading_time: Duration = start.elapsed();
 
-    // Run genetic algorithm
-    let (best_partition, _fitness_history) = 
-    genetic_algorithm(&graph, 
+    let (
+        best_partition,
+        _fitness_history) = 
+        genetic_algorithm(    
+        &graph, 
         400, 
         100,
     debug_mode
     );
 
-    let algorithm_time: Duration = start.elapsed();
-
-    // Save best partition to JSON
     let json = serde_json::to_string_pretty(&best_partition)?;
-    fs::write("best_partition.json", json)?;
-
-
-    println!("Algorithm time {:?} | Reading time: {:?}", algorithm_time, reading_time);
-    println!("Best partition saved to best_partition.json");
-    println!("Final modularity: {}", calculate_objectives(&graph, &best_partition).modularity);
+    fs::write(OUTPUT_PATH, json)?;
+    println!("Algorithm time {:?} | Reading time: {:?}", start.elapsed(), reading_time);
     
-
     Ok(())
 }
