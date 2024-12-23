@@ -79,8 +79,9 @@ def load_json_partition(file_path):
     """
     with open(file_path, 'r') as file:
         data = json.load(file)
-    return {int(node): community for node, community in data["best_partition"].items()}
 
+    # Ensure the output is a dictionary mapping integers to integers
+    return {int(node): int(community) for node, community in data.items()}
 
 if __name__ == "__main__":
     graph_file = (sys.argv[1:])[0]

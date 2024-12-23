@@ -1,122 +1,187 @@
-// This Source Code Form is subject to the terms of The GNU General Public License v3.0
-// Copyright 2024 - Guilherme Santos. If a copy of the GPL3 was not distributed with this
-// file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
-
-use petgraph::graph::Graph;
-use petgraph::Undirected;
-use rand::prelude::*;
+use std::collections::{HashMap, HashSet};
+use rand::Rng;
+use rand::seq::SliceRandom;
 use rayon::prelude::*;
-use std::fs::File;
-use std::io::Write;
 
-use crate::operators;
-use crate::operators::Partition;
 
-const OUTPUT_PATH: &str = "src/graphs/output/output.json";
+use crate::graph::{
+    Graph,
+    Partition,
+    CommunityId,
+    NodeId
+};
 
-fn debug(generation: usize, best_fitness: f64, avg_fitness: f64) {
-    println!(
-        "[Debug Mode]: | Generation {:.4}\t | B.Fitness: {:.4} | Avg.Fitness: {:.4}",
-        generation, best_fitness, avg_fitness
-    );
+#[derive(Debug)]
+#[allow(dead_code)]
+pub struct Metrics {
+    pub modularity: f64,
+    intra: f64,
+    inter: f64,
 }
 
-pub fn genetic_algorithm(
-    graph: &Graph<(), (), Undirected>,
-    generations: usize,
-    population_size: usize,
-    debug_mode: bool,
-) -> (
-    Vec<(Partition, (f64, f64, f64), f64)>,
-    Vec<f64>,
-    Vec<f64>,
-) {
-    // Precompute degrees once for efficiency
-    let node_degrees: Vec<f64> = operators::compute_node_degrees(graph);
-    let mut best_fitness_history = Vec::with_capacity(generations);
-    let mut avg_fitness_history = Vec::with_capacity(generations);
+pub fn calculate_objectives(graph: &Graph, partition: &Partition) -> Metrics {
+    let total_edges = graph.edges.len() as f64;
+    if total_edges == 0.0 {
+        return Metrics {
+            modularity: 0.0,
+            intra: 0.0,
+            inter: 0.0,
+        };
+    }
 
-    // Initialize global best tracking variables
-    let mut global_best_partition: Option<Partition> = None;
-    let mut global_best_fitness: f64 = f64::NEG_INFINITY;
+    let mut communities: HashMap<CommunityId, HashSet<NodeId>> = HashMap::new();
+    for (node, community) in partition {
+        communities
+            .entry(*community)
+            .or_insert_with(HashSet::new)
+            .insert(*node);
+    }
 
-    // 1. Generate initial population
-    let mut population = operators::ga::generate_initial_population(graph, population_size);
+    let mut intra_sum = 0.0;
+    let mut inter = 0.0;
+    let total_edges_doubled = 2.0 * total_edges;
 
-    // 2. Evolution loop
-    for generation in 0..generations {
-        let fitnesses: Vec<(f64, f64, f64)> = population
-            .par_iter()
-            .map(|partition| {
-                operators::modularity::calculate_objectives(graph, partition, &node_degrees)
-            })
-            .collect();
+    for community_nodes in communities.values() {
+        let mut community_edges = 0.0;
+        let mut community_degree = 0.0;
 
-        let modularity_values: Vec<f64> = fitnesses.iter().map(|f| f.0).collect();
-        let best_fitness = modularity_values
-            .iter()
-            .cloned()
-            .fold(f64::NEG_INFINITY, f64::max);
-        let avg_fitness = modularity_values.iter().sum::<f64>() / fitnesses.len() as f64;
+        for &node in community_nodes {
+            let node_degree = graph.neighbors(&node).len() as f64;
+            community_degree += node_degree;
 
-        best_fitness_history.push(best_fitness);
-        avg_fitness_history.push(avg_fitness);
-
-        // Update global best if current generation's best is better
-        if best_fitness > global_best_fitness {
-            global_best_fitness = best_fitness;
-            // Find the partition with the best fitness
-            global_best_partition = population
-                .iter()
-                .zip(fitnesses.iter())
-                .filter(|(_, fitness)| fitness.0 == best_fitness)
-                .map(|(p, _)| p.clone())
-                .next();
+            for neighbor in graph.neighbors(&node) {
+                if community_nodes.contains(&neighbor) {
+                    community_edges += 1.0;
+                }
+            }
         }
 
-        // Selection
-        population = operators::ga::selection(&population, &fitnesses);
+        community_edges /= 2.0;
+        intra_sum += community_edges;
+        let normalized_degree = community_degree / total_edges_doubled;
+        inter += normalized_degree.powi(2);
+    }
 
-        // Generate new population
-        let mut rng = thread_rng();
+    let intra = 1.0 - (intra_sum / total_edges);
+    let mut modularity = 1.0 - intra - inter;
+    modularity = modularity.max(-1.0).min(1.0);
+
+    Metrics {
+        modularity,
+        intra,
+        inter,
+    }
+}
+
+fn generate_initial_population(graph: &Graph, population_size: usize) -> Vec<Partition> {
+    let mut rng = rand::thread_rng();
+    let nodes: Vec<NodeId> = graph.nodes.iter().cloned().collect();
+    let num_nodes = nodes.len();
+
+    (0..population_size)
+        .map(|_| {
+            nodes
+                .iter()
+                .map(|&node| (node, rng.gen_range(0..num_nodes) as CommunityId))
+                .collect()
+        })
+        .collect()
+}
+
+fn crossover(parent1: &Partition, parent2: &Partition) -> Partition {
+    let mut rng = rand::thread_rng();
+    let keys: Vec<NodeId> = parent1.keys().cloned().collect();
+    let len = keys.len();
+    let (idx1, idx2) = {
+        let mut points = vec![rng.gen_range(0..len), rng.gen_range(0..len)];
+        points.sort();
+        (points[0], points[1])
+    };
+
+    let mut child = parent1.clone();
+    for i in idx1..idx2 {
+        if let Some(&community) = parent2.get(&keys[i]) {
+            child.insert(keys[i], community);
+        }
+    }
+    child
+}
+
+fn mutate(partition: &mut Partition, graph: &Graph) {
+    let mut rng = rand::thread_rng();
+    let nodes: Vec<NodeId> = partition.keys().cloned().collect();
+    let node = nodes.choose(&mut rng).unwrap();
+    let neighbors = graph.neighbors(node);
+    
+    if let Some(&neighbor) = neighbors.choose(&mut rng) {
+        if let Some(&neighbor_community) = partition.get(&neighbor) {
+            partition.insert(*node, neighbor_community);
+        }
+    }
+}
+
+pub fn genetic_algorithm(graph: &Graph, generations: usize, population_size: usize, debug: bool) -> (Partition, Vec<f64>) {
+    let mut rng = rand::thread_rng();
+    let mut population = generate_initial_population(graph, population_size);
+    let mut best_fitness_history = Vec::with_capacity(generations);
+
+    for generation in 0..generations {
+        // Evaluate fitness in parallel
+        let fitnesses: Vec<Metrics> = population
+            .par_iter()
+            .map(|partition| calculate_objectives(graph, partition))
+            .collect();
+
+        // Record best fitness
+        let best_fitness = fitnesses
+            .iter()
+            .map(|m| m.modularity)
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        best_fitness_history.push(best_fitness);
+
+        // Selection
+        let mut population_with_fitness: Vec<_> = population
+            .into_iter()
+            .zip(fitnesses)
+            .collect();
+        population_with_fitness.sort_by(|(_, a), (_, b)| {
+            b.modularity.partial_cmp(&a.modularity).unwrap()
+        });
+        population = population_with_fitness
+            .into_iter()
+            .take(population_size / 2)
+            .map(|(p, _)| p)
+            .collect();
+
+        // Create new population
         let mut new_population = Vec::with_capacity(population_size);
         while new_population.len() < population_size {
-            let parents: Vec<&Partition> = population.choose_multiple(&mut rng, 2).collect();
-            if parents.len() < 2 {
-                // If we cannot find two parents, reuse existing population
-                new_population.extend_from_slice(&population);
-                break;
-            }
-            let mut child = operators::ga::crossover(parents[0], parents[1]);
-            operators::ga::mutate(&mut child, graph);
+            let parent1 = population.choose(&mut rng).unwrap();
+            let parent2 = population.choose(&mut rng).unwrap();
+            let mut child = crossover(parent1, parent2);
+            mutate(&mut child, graph);
             new_population.push(child);
         }
         population = new_population;
 
-        if debug_mode {
-            debug(
-                generation, 
-                best_fitness, 
-                avg_fitness
+        if debug{
+            println!("Generation: {} \t | Best Fitness: {}", 
+            generation, 
+            best_fitness
             );
         }
+
     }
 
-    // Ensure that a global best partition has been found
-    let best_partition = global_best_partition.expect("No partition was found in the population.");
+    // Find best partition
+    let best_partition = population
+        .into_iter()
+        .max_by_key(|partition| {
+            let metrics = calculate_objectives(graph, partition);
+            (metrics.modularity * 1000.0) as i64
+        })
+        .unwrap();
 
-    // Save the best partition to a file
-    let json_string = operators::partition_to_json(&best_partition);
-    let mut file = File::create(OUTPUT_PATH).expect("Unable to create file");
-    write!(file, "{}", json_string).expect("Unable to write data");
-
-    // Final evaluation fitnesses can be from the last generation
-
-    // Return results
-    (
-        vec![(best_partition, (global_best_fitness, 0.0, 0.0), global_best_fitness)],
-        best_fitness_history,
-        avg_fitness_history,
-    )
+    (best_partition, best_fitness_history)
 }
-
