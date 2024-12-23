@@ -65,4 +65,13 @@ impl Graph {
             .cloned()
             .unwrap_or_default()
     }
+
+    pub fn num_nodes(&self) -> usize {
+        self.nodes.len()
+    }
+
+    pub fn num_edges(&self) -> usize {
+        self.edges.len()
+    }
+
 }

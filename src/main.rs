@@ -6,6 +6,9 @@ use std::env;
 use std::fs::exists;
 use std::time::{Duration, Instant};
 
+use std::fs::OpenOptions;
+use std::io::Write;
+
 mod graph;
 mod algorithm;
 
@@ -13,6 +16,7 @@ use crate::graph::Graph;
 use crate::algorithm::genetic_algorithm;
 
 const OUTPUT_PATH: &str = "src/graphs/output/output.json";
+const OUTPUT_CSV: &str = "src/graphs/output/mocd_output.csv";
 
 fn parse_args(args: &Vec<String>) -> (&str, bool) {
     if args.len() < 2 {
@@ -35,6 +39,27 @@ fn parse_args(args: &Vec<String>) -> (&str, bool) {
     (file_path, debug_mode)
 }
 
+fn save_csv(time_taken: Instant, num_nodes: usize, num_edges: usize, modularity: f64) {
+    // Calculate the elapsed time in seconds
+    let elapsed_time = time_taken.elapsed().as_secs_f64();
+
+    // Open the file in append mode, creating it if it doesn't exist
+    let mut file = OpenOptions::new()
+        .write(true)
+        .append(true)
+        .create(true)
+        .open(OUTPUT_CSV)
+        .expect("Failed to open or create the output CSV file");
+
+    // Write the metrics as a new row in the CSV file
+    writeln!(
+        file,
+        "{:.4},{},{},{:.4}",
+        elapsed_time, num_nodes, num_edges, modularity
+    )
+    .expect("Failed to write to the CSV file");
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
     
@@ -48,8 +73,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (
         best_partition,
-        _fitness_history) = 
-        genetic_algorithm(    
+        _fitness_history,
+        modularity,
+    ) = genetic_algorithm(    
         &graph, 
         400, 
         100,
@@ -58,7 +84,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let json = serde_json::to_string_pretty(&best_partition)?;
     fs::write(OUTPUT_PATH, json)?;
-    println!("Algorithm time {:?} | Reading time: {:?}", start.elapsed(), reading_time);
+    println!("Algorithm time {:?} | Reading time: {:?} | Nodes: {:?} | Edges: {:?}", 
+    start.elapsed(), reading_time, graph.num_nodes(), graph.num_edges());
     
+    save_csv(start, graph.num_nodes(), graph.num_edges(), modularity);
+
     Ok(())
 }

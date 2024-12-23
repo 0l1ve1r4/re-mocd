@@ -148,7 +148,7 @@ fn mutate(partition: &mut Partition, graph: &Graph) {
     }
 }
 
-pub fn genetic_algorithm(graph: &Graph, generations: usize, population_size: usize, debug: bool) -> (Partition, Vec<f64>) {
+pub fn genetic_algorithm(graph: &Graph, generations: usize, population_size: usize, debug: bool) -> (Partition, Vec<f64>, f64) {
     let mut rng = rand::thread_rng();
     let mut population = generate_initial_population(graph, population_size);
     let mut best_fitness_history = Vec::with_capacity(generations);    
@@ -212,5 +212,13 @@ pub fn genetic_algorithm(graph: &Graph, generations: usize, population_size: usi
         })
         .unwrap();
 
-    (best_partition, best_fitness_history)
+    let max_modularity = best_fitness_history
+            .iter()
+            .fold(None, |max, &val| match max {
+            None => Some(val),
+            Some(max_val) if val > max_val && !val.is_nan() => Some(val),
+            Some(max_val) => Some(max_val),
+        });
+
+    (best_partition, best_fitness_history, max_modularity.unwrap())
 }
