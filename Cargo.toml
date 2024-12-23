@@ -1,16 +1,15 @@
 [package]
-name = "mocd"
-version = "0.1.0"
+name = "mocd" 
+version = "0.1.0" 
 edition = "2021"
-authors = ["Guilherme Santos"]
-license = "GPL3"
+authors = ["Guilherme Santos"] #
+license = "GPL-3.0-or-later"
 
 [profile.release]
-debug = true
+debug = true 
 
 [dependencies]
-petgraph = "0.6"
-rand = "0.8"
-rayon = "1.7"
-rustc-hash = { version = "2.1", default-features = true }
-serde_json = "1.0.0"
+rand = "0.8"            # random number generation.
+rayon = "1.7"           # data parallelism and multi-threading support.
+rustc-hash = { version = "2.1", default-features = true } # a fast hash map implementation.
+serde_json = "1.0.0"    # serializing and deserializing JSON data.
