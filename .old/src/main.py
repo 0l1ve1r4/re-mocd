@@ -48,7 +48,7 @@ if __name__ == "__main__":
     for i in range(1, 2):
         try:
             try:
-                G = convert_edgelist_to_graph("/home/ol1ve1r4/Desktop/mocd/src/graphs/artificials/mu-0.1.edgelist")
+                G = convert_edgelist_to_graph("/home/ol1ve1r4/Desktop/mocd/src/graphs/artificials/karate.edgelist")
                 
             except Exception as e:
                 print(f"Failed to generate graph at iteration {i}: {e}")

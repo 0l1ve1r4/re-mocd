@@ -14,32 +14,37 @@ mod helper;
 mod consts;
 mod operators;
 
-fn main() -> () {
-    let args: Vec<String> = env::args().collect();
-
+fn parse_args(args: &Vec<String>) -> (&str, bool) {
     if args.len() < 2 {
         println!("Usage: <program> <file_path> [ -d for debug ]");
         println!("Example: ./my_program ../graphs/artificial/karate.edgelist -d");
-        return;
+        return ("", false);
     }
 
     let file_path: &str = &args[1];
-    if !exists(file_path).unwrap_or_else(|err| {
-        eprintln!("Failed to check file existence: {}", err);
-        false
-    }) {
+    if exists(file_path).is_err() {
         println!("Graph .edgelist file not found.");
-        return;
+        return ("", false);
     }
-
-
 
     let debug_mode: bool = args.len() > 2 && &args[2] == "-d";
     if debug_mode {
-        println!("Debug mode: {}", debug_mode);
-        println!("File found, proceed with reading...");
+        println!("[Warning] Debug mode: {} | This may increase algorithm time", debug_mode);
     }
 
+    (file_path, debug_mode)
+}
+
+fn main() -> () {
+    let args: Vec<String> = env::args().collect();
+    
+    let (file_path, 
+        debug_mode
+    ) = parse_args(&args);
+
+    if file_path.is_empty() {
+        return;
+    }
 
     let start: Instant = Instant::now();
     let graph: Graph<(), (), Undirected> = helper::read_graph(file_path);
@@ -49,17 +54,19 @@ fn main() -> () {
     let (
         _, 
         _, 
-        _,
-        best_history,
+        _, 
+        best_history, 
         avg_history
-    ) = algorithm::genetic_algorithm(&graph, consts::NUM_GENERATIONS, consts::POPULATION_SIZE,);
+    ) = algorithm::genetic_algorithm(
+        &graph, 
+        consts::NUM_GENERATIONS, 
+        consts::POPULATION_SIZE,
+        debug_mode
+    );
 
     let algorithm_time: Duration = start.elapsed();
-
-    if debug_mode {
-        helper::debug(reading_time, algorithm_time);
-    }
-
-    helper::save_data(best_history, avg_history,algorithm_time, consts::NUM_GENERATIONS);
-   
+    
+    // Debug time elapsed even with debug mode false
+    helper::debug(reading_time, algorithm_time);
+    helper::save_data(best_history, avg_history, algorithm_time, consts::NUM_GENERATIONS);
 }

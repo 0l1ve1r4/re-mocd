@@ -6,7 +6,7 @@ import numpy as np
 import json
 
 # File paths
-graph_file = "src/graphs/artificials/mu-0.1.edgelist"
+graph_file = "src/graphs/artificials/karate.edgelist"
 best_partition_json = "src/graphs/output/output.json"
 
 def visualize_comparison(graph: nx.Graph, partition_ga: dict, partition_two: NodeClustering, nmi_score: float, save_file_path: str = None):

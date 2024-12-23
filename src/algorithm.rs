@@ -43,11 +43,17 @@ fn generate_random_graph(node_count: usize, edge_count: usize) -> Graph<(), (), 
     graph
 }
 
-
+fn debug(generation: usize, best_fitness: f64, avg_fitness: f64) {
+    println!(
+        "[Debug Mode]: | Generation {:.4}\t | B.Fitness: {:.4} | Avg.Fitness: {:.4}",
+        generation, best_fitness, avg_fitness
+    );
+}
 pub fn genetic_algorithm(
     graph: &Graph<(), (), Undirected>,
     generations: usize,
     population_size: usize,
+    debug_mode: bool,
 ) -> (
     Vec<(Partition, (f64, f64, f64), f64)>,
     Vec<(f64, f64, f64)>,
@@ -56,7 +62,7 @@ pub fn genetic_algorithm(
     Vec<f64>,
 ) {
     // Precompute degrees once for efficiency
-    let node_degrees = operators::compute_node_degrees(graph);
+    let node_degrees: Vec<f64> = operators::compute_node_degrees(graph);
     let mut best_fitness_history = Vec::with_capacity(generations);
     let mut avg_fitness_history = Vec::with_capacity(generations);
 
@@ -64,7 +70,7 @@ pub fn genetic_algorithm(
     let mut population = operators::ga::generate_initial_population(graph, population_size);
 
     // 2. Evolution loop
-    for _ in 0..generations {
+    for generation in 0..generations {
         let fitnesses: Vec<(f64, f64, f64)> = population
             .par_iter()
             .map(|partition| {
@@ -100,6 +106,15 @@ pub fn genetic_algorithm(
             new_population.push(child);
         }
         population = new_population;
+
+        if debug_mode {
+            debug(
+                generation, 
+                best_fitness, 
+                avg_fitness
+            );
+        }
+
     }
 
     // Final evaluation for real network
