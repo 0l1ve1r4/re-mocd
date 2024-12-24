@@ -39,7 +39,7 @@ def visualize_comparison(graph: nx.Graph, partition_ga: dict, partition_two: Nod
     axs[1].axis('off')
 
     fig.suptitle(f'NMI Score: {nmi_score:.4f}', fontsize=16)
-    
+
     if save_file_path is None:
         plt.show()
     else:
@@ -99,6 +99,20 @@ if __name__ == "__main__":
     print(f"NMI (GA vs Leiden): {nmi_leiden:.4f}")
 
 
-    visualize_comparison(G, mocd_partition, louvain_communities, nmi_louvain)
-    visualize_comparison(G, mocd_partition, leiden_communities, nmi_leiden)
+    with open("src/graphs/output/mocd_output.csv", "r+") as file:
+        lines = file.readlines()
+        if lines:
+            # Modify the last line by appending the new values
+            lines[-1] = lines[-1].strip() + f",{nmi_louvain},{nmi_leiden}\n"
+        else:
+            # Handle empty file case
+            lines.append("elapsed_time,num_nodes,num_edges,modularity,nmi_louvain,nmi_leiden\n")
+            lines.append(f"0,0,0,0,{nmi_louvain:.4},{nmi_leiden:.4}\n")
+
+        # Rewrite the file with the updated content
+        file.seek(0)
+        file.writelines(lines)
+
+    # visualize_comparison(G, mocd_partition, louvain_communities, nmi_louvain)
+    # visualize_comparison(G, mocd_partition, leiden_communities, nmi_leiden)
     print("\nDone.")

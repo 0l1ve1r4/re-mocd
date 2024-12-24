@@ -77,8 +77,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         modularity,
     ) = genetic_algorithm(    
         &graph, 
-        400, 
-        100,
+        800, 
+        200,
     debug_mode
     );
 
