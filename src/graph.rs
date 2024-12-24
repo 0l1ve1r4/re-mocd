@@ -1,6 +1,7 @@
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
@@ -8,7 +9,7 @@ use std::path::Path;
 
 pub type NodeId = i32;
 pub type CommunityId = i32;
-pub type Partition = HashMap<NodeId, CommunityId>;
+pub type Partition = BTreeMap<NodeId, CommunityId>;
 
 #[derive(Debug)]
 pub struct Graph {
@@ -59,11 +60,10 @@ impl Graph {
         Ok(graph)
     }
 
-    pub fn neighbors(&self, node: &NodeId) -> Vec<NodeId> {
+    pub fn neighbors(&self, node: &NodeId) -> &[NodeId] {
         self.adjacency_list
             .get(node)
-            .cloned()
-            .unwrap_or_default()
+            .map_or(&[], |x| x)
     }
 
     pub fn num_nodes(&self) -> usize {
