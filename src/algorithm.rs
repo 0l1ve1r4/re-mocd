@@ -23,6 +23,12 @@ impl Metrics {
     }
 }
 
+// Maximum number of generations with unchanged fitness
+const MAX_GENERATIONS_WITH_SAME_FITNESS: usize = 20;
+
+// Tolerance for floating-point fitness comparisons
+const FITNESS_COMPARISON_EPSILON: f64 = 0.001;
+
 pub fn calculate_objectives(
     graph: &Graph,
     partition: &Partition,
@@ -154,6 +160,22 @@ fn mutate(partition: &mut Partition, graph: &Graph) {
     }
 }
 
+fn last_x_same(vec: &Vec<f64>, x: usize, epsilon: f64) -> bool {
+    if vec.len() < x {
+        return false;
+    }
+
+    let last_x = &vec[vec.len() - x..];
+    let first_value = last_x[0];
+
+    for &value in &last_x[1..] {
+        if (value - first_value).abs() > epsilon {
+            return false;
+        }
+    }
+    true
+}
+
 pub fn genetic_algorithm(
     graph: &Graph,
     generations: usize,
@@ -214,6 +236,14 @@ pub fn genetic_algorithm(
                 generation, best_fitness
             );
         }
+    
+        if last_x_same(&best_fitness_history, MAX_GENERATIONS_WITH_SAME_FITNESS, FITNESS_COMPARISON_EPSILON){
+            if debug {
+                println!("[Optimization]: Max Local, breaking...");
+            }
+            break;
+        }
+        
     }
 
     // Find best partition
