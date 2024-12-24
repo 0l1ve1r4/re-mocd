@@ -1,7 +1,12 @@
-/target
+# Ide
 .vscode
-temp.txt
-myenv/
-temp
+
+# Langs
 __pycache__
+/target
+/myenv
+
+# Specific output files
+src/graphs/output/output.json
+src/graphs/output/mocd_output.csv
 *.png

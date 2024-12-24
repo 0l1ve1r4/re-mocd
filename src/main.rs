@@ -30,15 +30,12 @@ fn parse_args(args: &Vec<String>) -> (&str, bool, bool) {
         return ("", false, false);
     }
 
+    let serial: bool = args.len() > 2 && args[2..].iter().any(|a| a == "-s");
     let debug_mode: bool = args.len() > 2 && args[2..].iter().any(|a| a == "-d");
     if debug_mode {
-        println!(
-            "[Warning] Debug mode: {} | This may increase algorithm time",
-            debug_mode
-        );
+        println!("[Debug mode]: {} - This may increase algorithm time", debug_mode);
+        println!("[Serial Mode]: {}", serial);
     }
-
-    let serial = args.len() > 2 && args[2..].iter().any(|a| a == "-s");
 
     (file_path, debug_mode, !serial)
 }

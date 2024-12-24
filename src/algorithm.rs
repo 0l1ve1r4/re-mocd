@@ -2,7 +2,6 @@ use rand::seq::SliceRandom;
 use rand::Rng;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap as HashMap;
-use rustc_hash::FxHashSet as HashSet;
 
 use crate::graph::{CommunityId, Graph, NodeId, Partition};
 
@@ -27,7 +26,7 @@ impl Metrics {
 pub fn calculate_objectives(
     graph: &Graph,
     partition: &Partition,
-    degrees: HashMap<i32, usize>,
+    degrees: &HashMap<i32, usize>,
     parallel: bool,
 ) -> Metrics {
     let total_edges = graph.edges.len() as f64;
@@ -171,12 +170,12 @@ pub fn genetic_algorithm(
         let fitnesses: Vec<Metrics> = if parallel {
             population
                 .par_iter()
-                .map(|partition| calculate_objectives(graph, partition, degress.clone(), true))
+                .map(|partition| calculate_objectives(graph, partition, &degress, true))
                 .collect()
         } else {
             population
                 .iter()
-                .map(|partition| calculate_objectives(graph, partition, degress.clone(), false))
+                .map(|partition| calculate_objectives(graph, partition, &degress, false))
                 .collect()
         };
 
@@ -221,7 +220,7 @@ pub fn genetic_algorithm(
     let best_partition = population
         .into_iter()
         .max_by_key(|partition| {
-            let metrics = calculate_objectives(graph, partition, degress.clone(), parallel);
+            let metrics = calculate_objectives(graph, partition, &degress, parallel);
             (metrics.modularity * 1000.0) as i64
         })
         .unwrap();
