@@ -7,6 +7,6 @@ __pycache__
 /myenv
 
 # Specific output files
-src/graphs/output/output.json
-src/graphs/output/mocd_output.csv
+res/output.json
+res/mocd_output.csv
 *.png

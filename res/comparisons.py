@@ -5,8 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import json
 import sys
-
-mocd_json = "src/graphs/output/output.json"
+import subprocess
 
 def visualize_comparison(graph: nx.Graph, partition_ga: dict, partition_two: NodeClustering, nmi_score: float, save_file_path: str = None):
     fig, axs = plt.subplots(1, 2, figsize=(16, 8))
@@ -68,51 +67,67 @@ def convert_edgelist_to_graph(edgelist_file: str):
         raise
 
 def load_json_partition(file_path):
-    """
-    Load the best partition from a JSON file output by the Rust algorithm.
-
-    Args:
-        file_path (str): Path to the JSON file.
-
-    Returns:
-        dict: A dictionary mapping node IDs to their respective community IDs.
-    """
+    """Load the best partition from a JSON file output by the Rust algorithm."""
     with open(file_path, 'r') as file:
         data = json.load(file)
-
-    # Ensure the output is a dictionary mapping integers to integers
     return {int(node): int(community) for node, community in data.items()}
 
-if __name__ == "__main__":
-    graph_file = (sys.argv[1:])[0]
 
-    G = convert_edgelist_to_graph(graph_file)
+def mocd(graph_file: str, mocd_executable: str):
+    args = [graph_file]
+    try:
+        result = subprocess.run(
+            [rust_executable, *args],   
+            text=True,                
+            capture_output=True,       
+            check=True                 
+        )
+
+    except subprocess.CalledProcessError as e:
+        print(f"Error:\n{e.stderr}")
+    except FileNotFoundError:
+        print(f"MOCD not found: {rust_executable}")
+
+def run_comparisons(graph_file: str, mocd_json:str, rust_executable:str, csv_file:str):
+    # Run the rust algorithm
+    mocd(graph_file, rust_executable)
     mocd_partition = load_json_partition(mocd_json)
 
+    # Run Louvain and Leiden Algorithms
+    G = convert_edgelist_to_graph(graph_file)
     louvain_communities = algorithms.louvain(G)
     leiden_communities = algorithms.leiden(G)
-
     nmi_louvain = compute_nmi(mocd_partition, louvain_communities, G)
     nmi_leiden = compute_nmi(mocd_partition, leiden_communities, G)
 
-    print(f"NMI (GA vs Louvain): {nmi_louvain:.4f}")
-    print(f"NMI (GA vs Leiden): {nmi_leiden:.4f}")
-
-
-    with open("src/graphs/output/mocd_output.csv", "r+") as file:
+    # Save output
+    with open(csv_file, "r+") as file:
         lines = file.readlines()
         if lines:
-            # Modify the last line by appending the new values
             lines[-1] = lines[-1].strip() + f",{nmi_louvain},{nmi_leiden}\n"
         else:
-            # Handle empty file case
             lines.append("elapsed_time,num_nodes,num_edges,modularity,nmi_louvain,nmi_leiden\n")
             lines.append(f"0,0,0,0,{nmi_louvain:.4},{nmi_leiden:.4}\n")
-
-        # Rewrite the file with the updated content
         file.seek(0)
         file.writelines(lines)
 
-    # visualize_comparison(G, mocd_partition, louvain_communities, nmi_louvain)
-    # visualize_comparison(G, mocd_partition, leiden_communities, nmi_leiden)
+    visualize_comparison(G, mocd_partition, louvain_communities, nmi_louvain)
+    visualize_comparison(G, mocd_partition, leiden_communities, nmi_leiden)
+
+if __name__ == "__main__":
+    mocd_json = "res/output.json"
+    rust_executable = "./target/release/mocd"
+    csv_file = "res/mocd_output.csv"
+    runs_per_file = 10
+    
+    graph_file = (sys.argv[1:])[0]
+    num_files = len(sys.argv) - 1
+
+    if num_files == 1:
+        run_comparisons(graph_file, mocd_json, rust_executable, csv_file)
+    
+    else:
+        for i in range(runs_per_file):
+            run_comparisons(graph_file[i], mocd_json, rust_executable, csv_file)
+
     print("\nDone.")

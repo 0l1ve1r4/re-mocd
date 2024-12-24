@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+
 def visualize_community_detection_results(csv_file):
     """
     Reads a CSV file with columns:
@@ -17,41 +18,44 @@ def visualize_community_detection_results(csv_file):
     # Read data from CSV
     df = pd.read_csv(csv_file)
 
-    #---------------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
     # 1) Plot: Modularity vs NMI (Louvain / Leiden) with confidence intervals
-    #---------------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
     # For confidence intervals, we'll assume multiple runs produce repeated values
     # for each unique modularity or grouping. We can group by 'modularity' if repeating.
     # If no repeated data for the same modularity values, confidence intervals will not
     # be meaningful and will appear as single points.
     # Here, we demonstrate an approach grouping by 'modularity' and calculating mean+std.
-    grouped_mod = df.groupby("modularity", as_index=False).agg({
-        "nmi_louvain": ["mean", "std"],
-        "nmi_leiden": ["mean", "std"]
-    })
+    grouped_mod = df.groupby("modularity", as_index=False).agg(
+        {"nmi_louvain": ["mean", "std"], "nmi_leiden": ["mean", "std"]}
+    )
     # Flatten columns
     grouped_mod.columns = [
         "modularity",
-        "nmi_louvain_mean", "nmi_louvain_std",
-        "nmi_leiden_mean", "nmi_leiden_std"
+        "nmi_louvain_mean",
+        "nmi_louvain_std",
+        "nmi_leiden_mean",
+        "nmi_leiden_std",
     ]
 
-    #---------------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
     # 2) Plot: Elapsed time vs ratio (num_nodes / num_edges) with confidence intervals
-    #---------------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
     df["nodes_edges_ratio"] = df["num_nodes"] / df["num_edges"]
-    grouped_ratio = df.groupby("nodes_edges_ratio", as_index=False).agg({
-        "elapsed_time": ["mean", "std"]
-    })
+    grouped_ratio = df.groupby("nodes_edges_ratio", as_index=False).agg(
+        {"elapsed_time": ["mean", "std"]}
+    )
     grouped_ratio.columns = [
-        "nodes_edges_ratio", "elapsed_time_mean", "elapsed_time_std"
+        "nodes_edges_ratio",
+        "elapsed_time_mean",
+        "elapsed_time_std",
     ]
 
-    #---------------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
     # 3) Plot: num_nodes, num_edges, and modularity
-    #---------------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
     # We changed to a 2D scatter instead of a 3D plot, coloring points by modularity.
-    #---------------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
     # Create the figure and subplots
     fig = plt.figure(figsize=(15, 5))
 
@@ -59,28 +63,30 @@ def visualize_community_detection_results(csv_file):
     ax1 = fig.add_subplot(1, 3, 1)
     sns.lineplot(
         data=grouped_mod,
-        x="modularity", y="nmi_louvain_mean",
+        x="modularity",
+        y="nmi_louvain_mean",
         label="NMI Louvain",
-        ax=ax1
+        ax=ax1,
     )
     ax1.fill_between(
         grouped_mod["modularity"],
         grouped_mod["nmi_louvain_mean"] - grouped_mod["nmi_louvain_std"],
         grouped_mod["nmi_louvain_mean"] + grouped_mod["nmi_louvain_std"],
-        alpha=0.2
+        alpha=0.2,
     )
 
     sns.lineplot(
         data=grouped_mod,
-        x="modularity", y="nmi_leiden_mean",
+        x="modularity",
+        y="nmi_leiden_mean",
         label="NMI Leiden",
-        ax=ax1
+        ax=ax1,
     )
     ax1.fill_between(
         grouped_mod["modularity"],
         grouped_mod["nmi_leiden_mean"] - grouped_mod["nmi_leiden_std"],
         grouped_mod["nmi_leiden_mean"] + grouped_mod["nmi_leiden_std"],
-        alpha=0.2
+        alpha=0.2,
     )
     ax1.set_xlabel("Modularity")
     ax1.set_ylabel("NMI")
@@ -90,15 +96,13 @@ def visualize_community_detection_results(csv_file):
     # Subplot 2: Elapsed time vs ratio (num_nodes/num_edges)
     ax2 = fig.add_subplot(1, 3, 2)
     sns.lineplot(
-        data=grouped_ratio,
-        x="nodes_edges_ratio", y="elapsed_time_mean",
-        ax=ax2
+        data=grouped_ratio, x="nodes_edges_ratio", y="elapsed_time_mean", ax=ax2
     )
     ax2.fill_between(
         grouped_ratio["nodes_edges_ratio"],
         grouped_ratio["elapsed_time_mean"] - grouped_ratio["elapsed_time_std"],
         grouped_ratio["elapsed_time_mean"] + grouped_ratio["elapsed_time_std"],
-        alpha=0.2
+        alpha=0.2,
     )
     ax2.set_xlabel("Average Degree")  # Changed label to 'Average Degree'
     ax2.set_ylabel("Elapsed Time (s)")
@@ -108,8 +112,11 @@ def visualize_community_detection_results(csv_file):
     ax3 = fig.add_subplot(1, 3, 3)
     scatter_plot = sns.scatterplot(
         data=df,
-        x="num_nodes", y="num_edges",
-        hue="modularity", palette="viridis", ax=ax3
+        x="num_nodes",
+        y="num_edges",
+        hue="modularity",
+        palette="viridis",
+        ax=ax3,
     )
     ax3.set_title("Modularity by Graph Density")
     ax3.set_xlabel("Nodes")
@@ -126,7 +133,9 @@ def visualize_community_detection_results(csv_file):
     plt.savefig("400g_100_p.png", dpi=300)
     plt.show()
 
+
 import seaborn as sns
+
 
 def visualize_community_detection_with_mu(csv_file):
     """
@@ -151,14 +160,16 @@ def visualize_community_detection_with_mu(csv_file):
     df["mu"] = df["mu"].round(1)  # Avoid floating-point precision issues
 
     # Group by (mu, modularity) to calculate means and std for both Louvain and Leiden
-    grouped = df.groupby(["mu", "modularity"], as_index=False).agg({
-        "nmi_louvain": ["mean", "std"],
-        "nmi_leiden": ["mean", "std"]
-    })
+    grouped = df.groupby(["mu", "modularity"], as_index=False).agg(
+        {"nmi_louvain": ["mean", "std"], "nmi_leiden": ["mean", "std"]}
+    )
     grouped.columns = [
-        "mu", "modularity",
-        "nmi_louvain_mean", "nmi_louvain_std",
-        "nmi_leiden_mean", "nmi_leiden_std"
+        "mu",
+        "modularity",
+        "nmi_louvain_mean",
+        "nmi_louvain_std",
+        "nmi_leiden_mean",
+        "nmi_leiden_std",
     ]
 
     # Create a figure with two subplots side by side
@@ -175,7 +186,7 @@ def visualize_community_detection_with_mu(csv_file):
         hue="mu",
         marker="o",
         palette="viridis",
-        legend="full"
+        legend="full",
     )
 
     # Fill confidence intervals for Louvain
@@ -185,7 +196,7 @@ def visualize_community_detection_with_mu(csv_file):
             subset["modularity"],
             subset["nmi_louvain_mean"] - subset["nmi_louvain_std"],
             subset["nmi_louvain_mean"] + subset["nmi_louvain_std"],
-            alpha=0.2
+            alpha=0.2,
         )
 
     ax_louvain.set_title("Modularity vs NMI (Louvain)", fontsize=12)
@@ -204,7 +215,7 @@ def visualize_community_detection_with_mu(csv_file):
         hue="mu",
         marker="s",
         palette="viridis",
-        legend=None  # Hide the extra legend since it's the same mu values
+        legend=None,  # Hide the extra legend since it's the same mu values
     )
 
     # Fill confidence intervals for Leiden
@@ -214,7 +225,7 @@ def visualize_community_detection_with_mu(csv_file):
             subset["modularity"],
             subset["nmi_leiden_mean"] - subset["nmi_leiden_std"],
             subset["nmi_leiden_mean"] + subset["nmi_leiden_std"],
-            alpha=0.2
+            alpha=0.2,
         )
 
     ax_leiden.set_title("Modularity vs NMI (Leiden)", fontsize=12)
@@ -229,6 +240,6 @@ def visualize_community_detection_with_mu(csv_file):
 if __name__ == "__main__":
     # Example usage:
     # Replace 'results.csv' with the actual CSV file generated by your shell script.
-    file = "src/graphs/artificials/mocd_output_400g_100p.csv"
+    file = "src/graphs/output/mocd_output.csv"
     visualize_community_detection_results(file)
     visualize_community_detection_with_mu(file)
