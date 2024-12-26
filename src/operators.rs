@@ -9,7 +9,7 @@ use crate::graph::{CommunityId, Graph, NodeId, Partition};
 pub const MAX_GENERATIONS_WITH_SAME_FITNESS: usize = 20;
 
 // Tolerance for floating-point fitness comparisons
-pub const FITNESS_COMPARISON_EPSILON: f64 = 0.001;
+pub const FITNESS_COMPARISON_EPSILON: f64 = 0.0001;
 
 #[derive(Debug)]
 #[derive(PartialEq)]

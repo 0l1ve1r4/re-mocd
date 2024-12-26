@@ -80,8 +80,15 @@ pub fn pesa2_genetic_algorithm(
         }
         }
 
+        let hyperboxes: Vec<HyperBox>;
         // Create hypergrid representation
-        let hyperboxes = create_hypergrid(&archive, GRID_DIVISIONS);
+        if args.parallelism {
+            hyperboxes = create_hypergrid_parallel(&archive, GRID_DIVISIONS);
+        }
+
+        else {
+            hyperboxes = create_hypergrid(&archive, GRID_DIVISIONS)
+        }
         
         // Record best fitness (using modularity as primary objective)
         let best_fitness = archive
@@ -95,8 +102,19 @@ pub fn pesa2_genetic_algorithm(
         let mut new_population = Vec::with_capacity(args.pop_size);
         while new_population.len() < args.pop_size {
             // Select parents using PESA-II selection method
-            let parent1 = select_from_hypergrid(&hyperboxes, &mut rng);
-            let parent2 = select_from_hypergrid(&hyperboxes, &mut rng);
+            let parent1: &Solution;
+            let parent2: &Solution;
+            
+            if args.parallelism {
+                parent1 = select_from_hypergrid_parallel(&hyperboxes,&mut rng);
+                parent2 = select_from_hypergrid_parallel(&hyperboxes,&mut rng);
+
+            }
+
+            else {
+                parent1 = select_from_hypergrid(&hyperboxes, &mut rng);
+                parent2 = select_from_hypergrid(&hyperboxes, &mut rng);              
+            }
             
             // Crossover and mutation
             let mut child = operators::crossover(&parent1.partition, &parent2.partition);
@@ -205,6 +223,90 @@ fn select_from_hypergrid<'a>(hyperboxes: &'a [HyperBox], rng: &mut impl rand::Rn
     }
     
     // Fallback to last hyperbox if something goes wrong
+    let last_box = hyperboxes.last().unwrap();
+    &last_box.solutions[rng.gen_range(0..last_box.solutions.len())]
+}
+
+fn create_hypergrid_parallel(solutions: &[Solution], divisions: usize) -> Vec<HyperBox> {
+    let mut hyperboxes: Vec<HyperBox> = Vec::new();
+    
+    // Skip if solutions is empty
+    if solutions.is_empty() {
+        return hyperboxes;
+    }
+    
+    // Find min and max values for each objective (done sequentially here)
+    let mut min_values = vec![f64::MAX; solutions[0].objectives.len()];
+    let mut max_values = vec![f64::MIN; solutions[0].objectives.len()];
+    
+    for solution in solutions {
+        for (i, &obj) in solution.objectives.iter().enumerate() {
+            min_values[i] = min_values[i].min(obj);
+            max_values[i] = max_values[i].max(obj);
+        }
+    }
+
+    // First, compute all coordinates in parallel:
+    // Each solution is mapped to (coordinates, solution) in parallel.
+    let coords_with_solutions: Vec<(Vec<usize>, Solution)> = solutions
+        .par_iter()
+        .map(|solution| {
+            let coordinates: Vec<usize> = solution
+                .objectives
+                .iter() // can also use .par_iter() if objectives are large
+                .enumerate()
+                .map(|(i, &obj)| {
+                    let normalized = if (max_values[i] - min_values[i]).abs() < f64::EPSILON {
+                        0.0
+                    } else {
+                        (obj - min_values[i]) / (max_values[i] - min_values[i])
+                    };
+                    (normalized * divisions as f64)
+                        .min((divisions - 1) as f64)
+                        .round() as usize
+                })
+                .collect();
+            (coordinates, solution.clone())
+        })
+        .collect();
+    
+    // Sequentially group solutions by their coordinates
+    for (coordinates, sol) in coords_with_solutions {
+        match hyperboxes.iter_mut().find(|hb| hb.coordinates == coordinates) {
+            Some(hyperbox) => hyperbox.solutions.push(sol),
+            None => {
+                hyperboxes.push(HyperBox {
+                    solutions: vec![sol],
+                    coordinates,
+                });
+            }
+        }
+    }
+
+    hyperboxes
+}
+
+/// Parallel version of select_from_hypergrid
+fn select_from_hypergrid_parallel<'a>(hyperboxes: &'a [HyperBox], rng: &mut impl rand::Rng) -> &'a Solution {
+    // Compute total weight in parallel
+    let total_weight: f64 = hyperboxes
+        .par_iter()
+        .map(|hb| 1.0 / (hb.solutions.len() as f64))
+        .sum();
+    
+    let mut random_value = rng.gen::<f64>() * total_weight;
+    
+    // Selection remains sequential to handle the cumulative weights
+    for hyperbox in hyperboxes {
+        let weight = 1.0 / (hyperbox.solutions.len() as f64);
+        if random_value <= weight {
+            // Randomly select a solution from the chosen hyperbox
+            return &hyperbox.solutions[rng.gen_range(0..hyperbox.solutions.len())];
+        }
+        random_value -= weight;
+    }
+    
+    // Fallback to last hyperbox
     let last_box = hyperboxes.last().unwrap();
     &last_box.solutions[rng.gen_range(0..last_box.solutions.len())]
 }

@@ -43,8 +43,8 @@ impl AGArgs {
             eprintln!("\t -h, --help                Show this message;");
             eprintln!("\t -d, --debug               Show debugs (May increase time running);");
             eprintln!("\t -s, --serial              Serial processing (Disable Parallelism);");
-            eprintln!("\t -i, --infinity            Stop the algorithm only when reach a local max");
-            eprintln!("\t -so --single-objective    Run only with a single objective fitness function");
+            eprintln!("\t -i, --infinity            Stop the algorithm only when reach a local max (slower, but potentially more accurate);");
+            eprintln!("\t -so --single-objective    Run only with a single objective fitness function (faster, but potentially less accurate);");
             eprintln!();
             panic!();
         }
@@ -61,8 +61,8 @@ impl AGArgs {
 
         AGArgs {
             file_path: file_path.to_string(),
-            num_gens: if infinity { INFINITY_GENERATIONS } else { 400 },
-            pop_size: if infinity { INFINITY_POP_SIZE } else { 200 },
+            num_gens: if infinity { INFINITY_GENERATIONS } else { 800 },
+            pop_size: if infinity { INFINITY_POP_SIZE } else { 100 },
             mut_rate: 0.6,
             cross_rate: 0.9,
             parallelism,
