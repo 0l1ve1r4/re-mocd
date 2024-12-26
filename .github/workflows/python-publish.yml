@@ -1,0 +1,41 @@
+name: Publish to PyPI
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Checkout the repository
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    # Step 2: Install Rust toolchain
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        components: rustfmt
+        override: true
+
+    # Step 3: Install Python and maturin
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.9"
+
+    - name: Install maturin
+      run: pip install maturin
+
+    # Step 4: Build and publish the package
+    - name: Publish to PyPI
+      env:
+        # Set the PYPI_API_TOKEN as a secret in your GitHub repository
+        MATURIN_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      run: |
+        maturin publish --skip-existing
