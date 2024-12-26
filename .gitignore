@@ -5,6 +5,7 @@
 __pycache__
 /target
 /myenv
+.venv/
 
 # Specific output files
 res/output.json
