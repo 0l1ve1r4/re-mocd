@@ -3,7 +3,9 @@
 // file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
 
 use args::AGArgs;
+use pesa_ii::pesa2_genetic_algorithm;
 use serde_json;
+use std::collections::BTreeMap;
 use std::env;
 use std::fs::{self};
 use std::io::Write;
@@ -12,11 +14,12 @@ use std::time::{Duration, Instant};
 
 use std::fs::OpenOptions;
 
+mod operators;
 mod algorithm;
+mod pesa_ii;
 mod graph;
 mod args;
 
-use crate::algorithm::genetic_algorithm;
 use crate::graph::Graph;
 
 const OUTPUT_PATH: &str = "res/output.json";
@@ -47,8 +50,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let graph = Graph::from_edgelist(Path::new(&args.file_path))?;
     let reading_time: Duration = start.elapsed();
 
-    let (best_partition, _fitness_history, modularity) =
-        genetic_algorithm(&graph, args);
+    let best_partition: BTreeMap<i32, i32>;
+    let modularity: f64;
+
+    if args.single_obj {
+        (best_partition,
+        _,
+        modularity) = algorithm::genetic_algorithm(&graph, args);
+    }
+
+    else {
+        (best_partition,
+        _, 
+        modularity) = pesa2_genetic_algorithm(&graph, args);     
+    }
+    
 
     let json = serde_json::to_string_pretty(&best_partition)?;
     fs::write(OUTPUT_PATH, json)?;

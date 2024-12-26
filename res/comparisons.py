@@ -111,8 +111,8 @@ def run_comparisons(graph_file: str, mocd_json:str, rust_executable:str, csv_fil
         file.seek(0)
         file.writelines(lines)
 
-    # visualize_comparison(G, mocd_partition, louvain_communities, nmi_louvain)
-    # visualize_comparison(G, mocd_partition, leiden_communities, nmi_leiden)
+    #visualize_comparison(G, mocd_partition, louvain_communities, nmi_louvain)
+    #visualize_comparison(G, mocd_partition, leiden_communities, nmi_leiden)
 
 if __name__ == "__main__":
     mocd_json = "res/output.json"
@@ -120,12 +120,14 @@ if __name__ == "__main__":
     csv_file = "res/mocd_output.csv"
     runs_per_file = 10
     
-    # graph_file = (sys.argv[1:])[0]
+    # graph_files = (sys.argv[1:])[0]
     graph_files = [
         f"res/graphs/artificials/mu-0.{i}.edgelist" for i in range(1, 9)
-    ]
+     ]
 
+    # num_files = len(sys.argv[1:])
     num_files = len(graph_files)
+    
     if num_files == 1:
         run_comparisons(graph_files, mocd_json, rust_executable, csv_file)
 
