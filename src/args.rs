@@ -1,5 +1,8 @@
 use std::fs::metadata;
 
+const INFINITY_POP_SIZE: usize = 1000;
+const INFINITY_GENERATIONS: usize = 10000;
+
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct AGArgs {
@@ -54,8 +57,8 @@ impl AGArgs {
 
         AGArgs {
             file_path: file_path.to_string(),
-            num_gens: if infinity { 99999 } else { 400 },
-            pop_size: if infinity { 1000 } else { 200 },
+            num_gens: if infinity { INFINITY_GENERATIONS } else { 400 },
+            pop_size: if infinity { INFINITY_POP_SIZE } else { 200 },
             mut_rate: 0.6,
             cross_rate: 0.9,
             parallelism,
@@ -67,6 +70,8 @@ impl AGArgs {
 
 #[cfg(test)]
 mod tests {
+    use crate::args::INFINITY_GENERATIONS;
+
     use super::AGArgs;
 
     const TEST_FILE_PATH: &str = "res/graphs/artificials/article.edgelist";
@@ -93,8 +98,7 @@ mod tests {
         let args = vec!["mocd".to_string(), TEST_FILE_PATH.to_string(), "-i".to_string()];
         let parsed = AGArgs::parse(&args);
         assert!(parsed.infinity);
-        assert_eq!(parsed.num_gens, usize::MAX);
-        
+        assert_eq!(parsed.num_gens, INFINITY_GENERATIONS);        
         println!("{:?}", parsed);
     
     }
