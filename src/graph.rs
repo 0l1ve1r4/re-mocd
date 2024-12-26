@@ -74,4 +74,39 @@ impl Graph {
         self.edges.len()
     }
 
+    pub fn precompute_degress(&self) -> HashMap<i32, usize> {
+        let degrees: HashMap<NodeId, usize> = self
+            .nodes
+            .iter()
+            .map(|&node| (node, self.neighbors(&node).len()))
+            .collect();
+    
+        degrees
+    }
+
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_graph_num_nodes() {
+        let mut graph: Graph = Graph::new();
+        graph.add_edge(0, 1);
+        graph.add_edge(0, 2);
+        graph.add_edge(0, 4);
+
+        assert_eq!(graph.num_nodes(), 4);
+    }
+
+    #[test]
+    fn test_graph_num_edges() {
+        let mut graph: Graph = Graph::new();
+        graph.add_edge(0, 1);
+        graph.add_edge(0, 2);
+        graph.add_edge(0, 4);
+
+        assert_eq!(graph.num_edges(), 3);
+    }
 }

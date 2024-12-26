@@ -6,6 +6,7 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::graph::{CommunityId, Graph, NodeId, Partition};
 
 #[derive(Debug)]
+#[derive(PartialEq)]
 #[allow(dead_code)]
 pub struct Metrics {
     pub modularity: f64,
@@ -103,15 +104,7 @@ pub fn calculate_objectives(
     }
 }
 
-fn precompute_degress(graph: &Graph) -> HashMap<i32, usize> {
-    let degrees: HashMap<NodeId, usize> = graph
-        .nodes
-        .iter()
-        .map(|&node| (node, graph.neighbors(&node).len()))
-        .collect();
 
-    degrees
-}
 
 fn generate_initial_population(graph: &Graph, population_size: usize) -> Vec<Partition> {
     let mut rng = rand::thread_rng();
@@ -186,7 +179,7 @@ pub fn genetic_algorithm(
     let mut rng = rand::thread_rng();
     let mut population = generate_initial_population(graph, population_size);
     let mut best_fitness_history = Vec::with_capacity(generations);
-    let degress = precompute_degress(graph);
+    let degress = graph.precompute_degress();
 
     for generation in 0..generations {
         let fitnesses: Vec<Metrics> = if parallel {
@@ -268,4 +261,40 @@ pub fn genetic_algorithm(
         best_fitness_history,
         max_modularity.unwrap(),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_calculate_objectives() {
+        let graph: Graph = Graph::new();
+        let partition: Partition = Partition::new();
+
+        assert_eq!(calculate_objectives(&graph, 
+            &partition, 
+            &graph.precompute_degress(),
+            true
+        ), Metrics {
+            inter: 0.0,
+            intra: 0.0,
+            modularity: 0.0,
+        });
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_panic_ga() {
+        let graph: Graph = Graph::new();
+        let generations: usize = 100;
+        let population_size: usize = 100;
+        let debug: bool = false;
+        let parallel: bool = false;
+
+        // Should panic due the empty graph
+        genetic_algorithm(&graph, generations, population_size, debug, parallel);
+    }
+
+
 }
