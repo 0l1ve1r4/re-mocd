@@ -4,6 +4,7 @@ use rayon::prelude::*;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::graph::{CommunityId, Graph, NodeId, Partition};
+use crate::args::AGArgs;
 
 #[derive(Debug)]
 #[derive(PartialEq)]
@@ -171,18 +172,15 @@ fn last_x_same(vec: &Vec<f64>, x: usize, epsilon: f64) -> bool {
 
 pub fn genetic_algorithm(
     graph: &Graph,
-    generations: usize,
-    population_size: usize,
-    debug: bool,
-    parallel: bool,
+    args: AGArgs,
 ) -> (Partition, Vec<f64>, f64) {
     let mut rng = rand::thread_rng();
-    let mut population = generate_initial_population(graph, population_size);
-    let mut best_fitness_history = Vec::with_capacity(generations);
+    let mut population = generate_initial_population(graph, args.pop_size);
+    let mut best_fitness_history = Vec::with_capacity(args.num_gens);
     let degress = graph.precompute_degress();
 
-    for generation in 0..generations {
-        let fitnesses: Vec<Metrics> = if parallel {
+    for generation in 0..args.num_gens {
+        let fitnesses: Vec<Metrics> = if args.parallelism {
             population
                 .par_iter()
                 .map(|partition| calculate_objectives(graph, partition, &degress, true))
@@ -208,13 +206,13 @@ pub fn genetic_algorithm(
             .sort_by(|(_, a), (_, b)| b.modularity.partial_cmp(&a.modularity).unwrap());
         population = population_with_fitness
             .into_iter()
-            .take(population_size / 2)
+            .take(args.pop_size / 2)
             .map(|(p, _)| p)
             .collect();
 
         // Create new population
-        let mut new_population = Vec::with_capacity(population_size);
-        while new_population.len() < population_size {
+        let mut new_population = Vec::with_capacity(args.pop_size);
+        while new_population.len() < args.pop_size {
             let parent1 = population.choose(&mut rng).unwrap();
             let parent2 = population.choose(&mut rng).unwrap();
             let mut child = crossover(parent1, parent2);
@@ -223,7 +221,7 @@ pub fn genetic_algorithm(
         }
         population = new_population;
 
-        if debug {
+        if args.debug {
             println!(
                 "Generation: {} \t | Best Fitness: {}",
                 generation, best_fitness
@@ -231,7 +229,7 @@ pub fn genetic_algorithm(
         }
     
         if last_x_same(&best_fitness_history, MAX_GENERATIONS_WITH_SAME_FITNESS, FITNESS_COMPARISON_EPSILON){
-            if debug {
+            if args.debug {
                 println!("[Optimization]: Max Local, breaking...");
             }
             break;
@@ -243,7 +241,7 @@ pub fn genetic_algorithm(
     let best_partition = population
         .into_iter()
         .max_by_key(|partition| {
-            let metrics = calculate_objectives(graph, partition, &degress, parallel);
+            let metrics = calculate_objectives(graph, partition, &degress, args.parallelism);
             (metrics.modularity * 1000.0) as i64
         })
         .unwrap();
@@ -287,13 +285,7 @@ mod tests {
     #[should_panic]
     fn test_panic_ga() {
         let graph: Graph = Graph::new();
-        let generations: usize = 100;
-        let population_size: usize = 100;
-        let debug: bool = false;
-        let parallel: bool = false;
-
-        // Should panic due the empty graph
-        genetic_algorithm(&graph, generations, population_size, debug, parallel);
+        genetic_algorithm(&graph, AGArgs::default());
     }
 
 

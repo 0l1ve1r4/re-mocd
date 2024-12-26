@@ -6,7 +6,6 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 
-
 pub type NodeId = i32;
 pub type CommunityId = i32;
 pub type Partition = BTreeMap<NodeId, CommunityId>;
