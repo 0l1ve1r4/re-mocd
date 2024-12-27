@@ -6,34 +6,67 @@ import numpy as np
 import json
 import sys
 import subprocess
+import time
 
-def visualize_comparison(graph: nx.Graph, partition_ga: dict, partition_two: NodeClustering, nmi_score: float, save_file_path: str = None):
+import rmocd
+
+def visualize_comparison(
+    graph: nx.Graph, 
+    partition_ga: NodeClustering, 
+    partition_two: NodeClustering, 
+    nmi_score: float, 
+    save_file_path: str = None
+):
     fig, axs = plt.subplots(1, 2, figsize=(16, 8))
     pos = nx.spring_layout(graph, seed=42)
 
-    communities_ga = defaultdict(list)
-    for node, community in partition_ga.items():
-        communities_ga[community].append(node)
-    colors_ga = plt.cm.rainbow(np.linspace(0, 1, len(communities_ga)))
-    color_map_ga = {node: color for color, nodes in zip(colors_ga, communities_ga.values()) for node in nodes}
-    nx.draw_networkx_nodes(graph, pos=pos, nodelist=graph.nodes(),
-                           node_color=[color_map_ga[node] for node in graph.nodes()], ax=axs[0])
+    # Visualize MOCD (partition_ga) Communities
+    communities_ga = partition_ga.communities
+    communities_ga_dict = defaultdict(list)
+    for idx, community in enumerate(communities_ga):
+        for node in community:
+            communities_ga_dict[idx].append(node)
+    
+    colors_ga = plt.cm.rainbow(np.linspace(0, 1, len(communities_ga_dict)))
+    color_map_ga = {
+        node: color 
+        for color, nodes in zip(colors_ga, communities_ga_dict.values()) 
+        for node in nodes
+    }
+    nx.draw_networkx_nodes(
+        graph, 
+        pos=pos, 
+        nodelist=graph.nodes(),
+        node_color=[color_map_ga[node] for node in graph.nodes()], 
+        ax=axs[0]
+    )
     nx.draw_networkx_edges(graph, pos=pos, ax=axs[0])
-    nx.draw_networkx_labels(graph, pos=pos, ax=axs[0])  # Add node labels (numbers)
+    nx.draw_networkx_labels(graph, pos=pos, ax=axs[0])
     axs[0].set_title("MOCD - GA/Pareto")
     axs[0].axis('off')
 
-    # Second Algorithm (Louvain/Leiden) Communities Visualization
-    communities_algo = {node: idx for idx, community in enumerate(partition_two.communities) for node in community}
+    # Visualize the second algorithm (partition_two) Communities
+    communities_algo = partition_two.communities
     communities_algo_dict = defaultdict(list)
-    for node, community in communities_algo.items():
-        communities_algo_dict[community].append(node)
+    for idx, community in enumerate(communities_algo):
+        for node in community:
+            communities_algo_dict[idx].append(node)
+    
     colors_algo = plt.cm.rainbow(np.linspace(0, 1, len(communities_algo_dict)))
-    color_map_algo = {node: color for color, nodes in zip(colors_algo, communities_algo_dict.values()) for node in nodes}
-    nx.draw_networkx_nodes(graph, pos=pos, nodelist=graph.nodes(),
-                           node_color=[color_map_algo[node] for node in graph.nodes()], ax=axs[1])
+    color_map_algo = {
+        node: color 
+        for color, nodes in zip(colors_algo, communities_algo_dict.values()) 
+        for node in nodes
+    }
+    nx.draw_networkx_nodes(
+        graph, 
+        pos=pos, 
+        nodelist=graph.nodes(),
+        node_color=[color_map_algo[node] for node in graph.nodes()], 
+        ax=axs[1]
+    )
     nx.draw_networkx_edges(graph, pos=pos, ax=axs[1])
-    nx.draw_networkx_labels(graph, pos=pos, ax=axs[1])  # Add node labels (numbers)
+    nx.draw_networkx_labels(graph, pos=pos, ax=axs[1])
     axs[1].set_title("Second Algorithm (Louvain/Leiden)")
     axs[1].axis('off')
 
@@ -45,16 +78,14 @@ def visualize_comparison(graph: nx.Graph, partition_ga: dict, partition_two: Nod
         plt.savefig(save_file_path)
 
 def compute_nmi(partition_ga: dict, partition_algorithm: NodeClustering, graph: nx.Graph):
-    """Compute NMI between Genetic Algorithm and another partitioning algorithm."""
+    """Compute NMI between Genetic Algorithm partition (dictionary) and another partitioning algorithm."""
     communities_ga = defaultdict(list)
     for node, community in partition_ga.items():
         communities_ga[community].append(node)
     ga_communities_list = list(communities_ga.values())
     ga_node_clustering = NodeClustering(ga_communities_list, graph, "Genetic Algorithm")
 
-    nmi_value = evaluation.normalized_mutual_information(
-        ga_node_clustering, partition_algorithm
-    )
+    nmi_value = evaluation.normalized_mutual_information(ga_node_clustering, partition_algorithm)
     return nmi_value.score
 
 def convert_edgelist_to_graph(edgelist_file: str):
@@ -66,59 +97,54 @@ def convert_edgelist_to_graph(edgelist_file: str):
         print(f"Error reading edgelist file: {e}")
         raise
 
-def load_json_partition(file_path):
-    """Load the best partition from a JSON file output by the Rust algorithm."""
-    with open(file_path, 'r') as file:
-        data = json.load(file)
-    return {int(node): int(community) for node, community in data.items()}
+def convert_to_node_clustering(partition_dict, graph):
+    """Convert a dictionary partition to NodeClustering."""
+    communities = defaultdict(list)
+    for node, community in partition_dict.items():
+        communities[community].append(node)
 
+    community_list = list(communities.values())
+    return NodeClustering(community_list, graph, "MOCD Algorithm")
 
-def mocd(graph_file: str, mocd_executable: str):
-    args = [graph_file]
-    try:
-        result = subprocess.run(
-            [rust_executable, *args],   
-            text=True,                
-            capture_output=True,       
-            check=True                 
-        )
+def run_comparisons(graph_file: str, show_plot: bool):
+    # Run the MOCD approach
 
-    except subprocess.CalledProcessError as e:
-        print(f"Error:\n{e.stderr}")
-    except FileNotFoundError:
-        print(f"MOCD not found: {rust_executable}")
+    start = time.time()
+    mocd_partition, modularity = rmocd.run_rmocd(
+        graph_file, 
+        True,   # Parallelism    
+        False,  # Infinity mode
+        False    # single_objective
+    )
 
-def run_comparisons(graph_file: str, mocd_json:str, rust_executable:str, csv_file:str, show_plot: bool):
-    # Run the rust algorithm
-    mocd(graph_file, rust_executable)
-    mocd_partition = load_json_partition(mocd_json)
+    if show_plot:
+        print(f"Mocd modularity: {modularity}")
+        print(f"Time spent: {time.time() - start}")
 
-    # Run Louvain and Leiden Algorithms
+    # Read the graph
     G = convert_edgelist_to_graph(graph_file)
+
+    # Convert MOCD partition (dict) to NodeClustering
+    mocd_nc = convert_to_node_clustering(mocd_partition, G)
+
+    # Run Louvain and Leiden
     louvain_communities = algorithms.louvain(G)
     leiden_communities = algorithms.leiden(G)
+
+    print(f"Louvain communities: {louvain_communities}")
+    print(f"Leiden communities: {leiden_communities}")
+
+    # Compute NMI
     nmi_louvain = compute_nmi(mocd_partition, louvain_communities, G)
     nmi_leiden = compute_nmi(mocd_partition, leiden_communities, G)
 
-    # Save output
-    with open(csv_file, "r+") as file:
-        lines = file.readlines()
-        if lines:
-            lines[-1] = lines[-1].strip() + f",{nmi_louvain},{nmi_leiden}\n"
-        else:
-            lines.append("elapsed_time,num_nodes,num_edges,modularity,nmi_louvain,nmi_leiden\n")
-            lines.append(f"0,0,0,0,{nmi_louvain:.4},{nmi_leiden:.4}\n")
-        file.seek(0)
-        file.writelines(lines)
+    # Visualize comparisons
+    visualize_comparison(G, mocd_nc, louvain_communities, nmi_louvain, "output")
+    visualize_comparison(G, mocd_nc, leiden_communities, nmi_leiden, "output")
 
-    if show_plot:
-        visualize_comparison(G, mocd_partition, louvain_communities, nmi_louvain)
-        visualize_comparison(G, mocd_partition, leiden_communities, nmi_leiden)
+mu_graphs = [f"res/graphs/artificials/mu-0.{i}.edgelist" for i in range(1, 9)]
 
 if __name__ == "__main__":
-    mocd_json = "res/output.json"
-    rust_executable = "./target/release/mocd"
-    csv_file = "res/mocd_output.csv"
     runs_per_file = 10
     
     has_args = (len(sys.argv) > 1)
@@ -129,20 +155,16 @@ if __name__ == "__main__":
     if has_args:
         graph_files = (sys.argv[1:])[0]
         num_files = len(sys.argv[1:])
-
     else: 
-        graph_files = [
-            f"res/graphs/artificials/mu-0.{i}.edgelist" for i in range(1, 9)
-        ]
+        graph_files = mu_graphs
         num_files = len(graph_files)
 
     if num_files == 1:
         show_plot = True
-        run_comparisons(graph_files, mocd_json, rust_executable, csv_file, show_plot)
-
+        run_comparisons(graph_files, show_plot)
     else:
         for i in range(num_files):
             for _ in range(runs_per_file):
-                run_comparisons(graph_files[i], mocd_json, rust_executable, csv_file, show_plot)
+                run_comparisons(graph_files[i], show_plot)
 
-    print("\nDone.")
+    print("Done.")
