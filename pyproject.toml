@@ -1,0 +1,22 @@
+[build-system]
+requires = ["maturin>=0.14,<0.15"]
+build-backend = "maturin"
+
+[project]
+name = "rmocd"
+version = "0.1.0"
+description = "Rapid multi-objective community detection with parallel computation and caching to efficiently handle large-scale graphs."
+authors = ["Guilherme Santos <gs.oliveira.dev@gmail.com>"]
+readme = { file = "README.md", content-type = "text/markdown" }
+keywords = ["rust", "python", "community detection", "multi-objective optimization", "graph analysis"]
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Rust",
+    "License :: OSI Approved :: MIT License",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries"
+]
+
+[project.dependencies]
+pyo3 = { version = "0.23.3", features = ["extension-module"] }
