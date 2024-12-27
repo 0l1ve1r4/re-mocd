@@ -1,10 +1,10 @@
 [build-system]
-requires = ["maturin>=0.14,<0.15"]
+requires = ["maturin>=1.8.0"]
 build-backend = "maturin"
 
 [project]
 name = "rmocd"
-version = "0.1.0"
+version = "1.0.0"
 license = {file = "LICENSE"}
 description = "Rapid multi-objective community detection with parallel computation and caching to efficiently handle large-scale graphs."
 authors = [
@@ -19,7 +19,9 @@ classifiers = [
     "Programming Language :: Rust",
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "Topic :: Software Development :: Libraries"
+    "Topic :: Software Development :: Libraries",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
 ]
 
 [project.urls]
