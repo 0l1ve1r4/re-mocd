@@ -36,7 +36,7 @@ use graph::Graph;
         debug = false,
     )
 )]
-fn run_rmocd(
+fn run (
     file_path: String, 
     parallelism: bool, 
     infinity: bool, 
@@ -73,13 +73,11 @@ fn run_rmocd(
     Ok((best_partition, modularity))
 }
 
-
-
 /// A Python module implemented in Rust. The name of this function must match
 /// the `lib.name` setting in the `Cargo.toml`, else Python will not be able to
 /// import the module.
 #[pymodule]
 fn rmocd(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(run_rmocd, m)?)?;
+    m.add_function(wrap_pyfunction!(run, m)?)?;
     Ok(())
 }

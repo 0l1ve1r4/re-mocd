@@ -10,4 +10,3 @@ __pycache__
 # Specific output files
 res/output.json
 res/mocd_output.csv
-*.png

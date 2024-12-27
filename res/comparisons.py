@@ -104,13 +104,13 @@ def convert_to_node_clustering(partition_dict, graph):
         communities[community].append(node)
 
     community_list = list(communities.values())
-    return NodeClustering(community_list, graph, "MOCD Algorithm")
+    return NodeClustering(community_list, graph, "rmocd Algorithm")
 
 def run_comparisons(graph_file: str, show_plot: bool):
     # Run the MOCD approach
 
     start = time.time()
-    mocd_partition, modularity = rmocd.run_rmocd(graph_file, single_obj=True, debug=True)
+    mocd_partition, modularity = rmocd.run(graph_file)
 
     if show_plot:
         print(f"Mocd modularity: {modularity}")
