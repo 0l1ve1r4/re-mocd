@@ -38,7 +38,7 @@ impl AGArgs {
         if  args.len() < 2 && args[0] != "--library-usage" || 
             args.iter().any(|a| a == "-h" || a == "--help") {
             eprintln!("Usage:");
-            eprintln!("\t mocd [file_path] [arguments]\n");
+            eprintln!("\t rmocd [file_path] [arguments]\n");
 
             eprintln!("Options:");
             eprintln!("\t -h, --help                Show this message;");
@@ -84,7 +84,7 @@ mod tests {
 
     #[test]
     fn test_parse_args() {
-        let args = vec!["mocd".to_string(), TEST_FILE_PATH.to_string(), "-s".to_string(), "--debug".to_string()];
+        let args = vec!["rmocd".to_string(), TEST_FILE_PATH.to_string(), "-s".to_string(), "--debug".to_string()];
         let parsed = AGArgs::parse(&args);
         assert_eq!(parsed.file_path, TEST_FILE_PATH);
         assert!(!parsed.parallelism);
@@ -95,13 +95,13 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_missing_file() {
-        let args = vec!["mocd".to_string(), "missing.edgelist".to_string()];
+        let args = vec!["rmocd".to_string(), "missing.edgelist".to_string()];
         AGArgs::parse(&args);
     }
 
     #[test]
     fn test_infinity_mode() {
-        let args = vec!["mocd".to_string(), TEST_FILE_PATH.to_string(), "-i".to_string()];
+        let args = vec!["rmocd".to_string(), TEST_FILE_PATH.to_string(), "-i".to_string()];
         let parsed = AGArgs::parse(&args);
         assert!(parsed.infinity);
         assert_eq!(parsed.num_gens, INFINITY_GENERATIONS);        

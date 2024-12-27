@@ -61,8 +61,8 @@ You can see an [example of plotting](res/example.py), or an example of how to [m
 
 1. Clone the repository and navigate to the project folder:
    ```bash
-   git clone https://github.com/0l1ve1r4/mocd
-   cd mocd
+   git clone https://github.com/0l1ve1r4/rmocd
+   cd rmocd
    ```
 
 2. Compile and run the algorithm with your edge list file:

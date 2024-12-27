@@ -20,7 +20,7 @@ def visualize_comparison(
     fig, axs = plt.subplots(1, 2, figsize=(16, 8))
     pos = nx.spring_layout(graph, seed=42)
 
-    # Visualize MOCD (partition_ga) Communities
+    # Visualize rmocd (partition_ga) Communities
     communities_ga = partition_ga.communities
     communities_ga_dict = defaultdict(list)
     for idx, community in enumerate(communities_ga):
@@ -42,7 +42,7 @@ def visualize_comparison(
     )
     nx.draw_networkx_edges(graph, pos=pos, ax=axs[0])
     nx.draw_networkx_labels(graph, pos=pos, ax=axs[0])
-    axs[0].set_title("MOCD - GA/Pareto")
+    axs[0].set_title("rmocd - GA/Pareto")
     axs[0].axis('off')
 
     # Visualize the second algorithm (partition_two) Communities
@@ -107,19 +107,19 @@ def convert_to_node_clustering(partition_dict, graph):
     return NodeClustering(community_list, graph, "rmocd Algorithm")
 
 def run_comparisons(graph_file: str, show_plot: bool):
-    # Run the MOCD approach
+    # Run the rmocd approach
 
     start = time.time()
     mocd_partition, modularity = rmocd.run(graph_file)
 
     if show_plot:
-        print(f"Mocd modularity: {modularity}")
+        print(f"rmocd modularity: {modularity}")
         print(f"Time spent: {time.time() - start}")
 
     # Read the graph
     G = convert_edgelist_to_graph(graph_file)
 
-    # Convert MOCD partition (dict) to NodeClustering
+    # Convert rmocd partition (dict) to NodeClustering
     mocd_nc = convert_to_node_clustering(mocd_partition, G)
 
     # Run Louvain and Leiden
