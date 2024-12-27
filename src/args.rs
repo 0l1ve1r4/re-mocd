@@ -35,7 +35,8 @@ impl AGArgs {
     }
 
     pub fn parse(args: &Vec<String>) -> AGArgs {
-        if args.len() < 2 || args.iter().any(|a| a == "-h" || a == "--help") {
+        if  args.len() < 2 && args[0] != "--library-usage" || 
+            args.iter().any(|a| a == "-h" || a == "--help") {
             eprintln!("Usage:");
             eprintln!("\t mocd [file_path] [arguments]\n");
 

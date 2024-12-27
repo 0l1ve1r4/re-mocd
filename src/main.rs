@@ -3,7 +3,6 @@
 // file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
 
 use args::AGArgs;
-use pesa_ii::pesa2_genetic_algorithm;
 use serde_json;
 use std::collections::BTreeMap;
 use std::env;
@@ -16,7 +15,6 @@ use std::fs::OpenOptions;
 
 mod operators;
 mod algorithm;
-mod pesa_ii;
 mod graph;
 mod args;
 
@@ -46,6 +44,11 @@ fn save_csv(time_taken: Instant, num_nodes: usize, num_edges: usize, modularity:
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: AGArgs = AGArgs::parse(&(env::args().collect()));
 
+    if args.debug {
+        println!("[DEBUG]: Running by CLI");
+        println!("[DEBUG | AGArgs]: {:?}", args);
+    }
+
     let start: Instant = Instant::now();
     let graph = Graph::from_edgelist(Path::new(&args.file_path))?;
     let reading_time: Duration = start.elapsed();
@@ -53,18 +56,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let best_partition: BTreeMap<i32, i32>;
     let modularity: f64;
 
-    if args.single_obj {
-        (best_partition,
-        _,
-        modularity) = algorithm::genetic_algorithm(&graph, args);
-    }
-
-    else {
-        (best_partition,
-        _, 
-        modularity) = pesa2_genetic_algorithm(&graph, args);     
-    }
-    
+    (best_partition, _, modularity) = algorithm::genetic_algorithm(&graph, args);
 
     let json = serde_json::to_string_pretty(&best_partition)?;
     fs::write(OUTPUT_PATH, json)?;

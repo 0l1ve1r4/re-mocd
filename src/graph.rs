@@ -65,10 +65,12 @@ impl Graph {
             .map_or(&[], |x| x)
     }
 
+    #[allow(dead_code)]
     pub fn num_nodes(&self) -> usize {
         self.nodes.len()
     }
 
+    #[allow(dead_code)]
     pub fn num_edges(&self) -> usize {
         self.edges.len()
     }

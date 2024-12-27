@@ -1,5 +1,6 @@
 use crate::args::AGArgs;
 use rayon::prelude::*;
+use std::time::Instant;
 use crate::graph::{Graph, Partition};
 
 use crate::operators;
@@ -42,10 +43,12 @@ pub fn pesa2_genetic_algorithm(
     let mut best_fitness_history = Vec::with_capacity(args.num_gens);
     let degrees = graph.precompute_degress();
     
-    // Number of divisions for the adaptive grid
     const GRID_DIVISIONS: usize = 8;
-    
+    const MAX_ARCHIVE_SIZE: usize = 100; 
+
     for generation in 0..args.num_gens {
+        let generation_start = Instant::now();
+
         // Calculate objectives for current population
         let solutions: Vec<Solution> = if args.parallelism {
             population
@@ -71,17 +74,15 @@ pub fn pesa2_genetic_algorithm(
                 .collect()
         };
 
-        // Update archive with non-dominated solutions
-        for solution in solutions {
-        if !archive.iter().any(|archived: &Solution| archived.dominates(&solution)) {
-            // Remove solutions from archive that are dominated by the new solution
-            archive.retain(|archived: &Solution| !solution.dominates(archived));
-            archive.push(solution);
-        }
+        if archive.len() >= MAX_ARCHIVE_SIZE {
+            let len = archive.len();
+            archive = archive.split_at(len - MAX_ARCHIVE_SIZE).1.to_vec();
+
         }
 
+        update_archive_parallel(solutions, &mut archive);
+
         let hyperboxes: Vec<HyperBox>;
-        // Create hypergrid representation
         if args.parallelism {
             hyperboxes = create_hypergrid_parallel(&archive, GRID_DIVISIONS);
         }
@@ -131,13 +132,17 @@ pub fn pesa2_genetic_algorithm(
             }
             break;
         }
+        let generation_duration = generation_start.elapsed();
 
         if args.debug {
             println!(
-                "Generation: {} \t | Best Fitness: {}",
-                generation, best_fitness
+                "Generation: {} | Best Fitness: {} | Duration: {:?} | Archive Size: {}",
+                generation,
+                best_fitness,
+                generation_duration,
+                archive.len()
             );
-        }
+}
     }
 
     // Find best solution from archive (using modularity as primary objective)
@@ -284,6 +289,32 @@ fn create_hypergrid_parallel(solutions: &[Solution], divisions: usize) -> Vec<Hy
     }
 
     hyperboxes
+}
+
+fn update_archive_parallel(
+    new_solutions: Vec<Solution>,
+    archive: &mut Vec<Solution>,
+) {
+    let chunks = new_solutions.par_chunks(100);  // Process in chunks
+    let mut updates: Vec<Solution> = chunks
+        .flat_map(|chunk| {
+            chunk
+                .par_iter()
+                .filter(|&solution| {
+                    !archive.par_iter().any(|archived| archived.dominates(solution))
+                })
+                .cloned()
+                .collect::<Vec<_>>()
+        })
+        .collect();
+
+    // Batch process the updates
+    if !updates.is_empty() {
+        archive.retain(|archived| {
+            !updates.par_iter().any(|update| update.dominates(archived))
+        });
+        archive.extend(updates);
+    }
 }
 
 /// Parallel version of select_from_hypergrid
