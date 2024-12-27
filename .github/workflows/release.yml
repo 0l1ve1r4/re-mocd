@@ -1,9 +1,7 @@
 name: Publish Rust Library to PyPI
 
 on:
-  push:
-    tags:
-      - "*"  # Triggers this workflow on any new tag
+  workflow_dispatch:
 
 jobs:
   build-and-publish:
