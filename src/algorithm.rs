@@ -1,10 +1,10 @@
-use rand::seq::SliceRandom;
 use rayon::prelude::*;
-
-use crate::graph::{Graph, Partition};
-use crate::args::AGArgs;
-use crate::operators;
 use operators::Metrics;
+use rand::seq::SliceRandom;
+
+use crate::operators;
+use crate::args::AGArgs;
+use crate::graph::{Graph, Partition};
 
 pub fn genetic_algorithm (
     graph: &Graph,
@@ -15,6 +15,7 @@ pub fn genetic_algorithm (
     let mut best_fitness_history = Vec::with_capacity(args.num_gens);
     let degress = graph.precompute_degress();
 
+    /*  1. Evolution */
     for generation in 0..args.num_gens {
         let fitnesses: Vec<Metrics> = if args.parallelism {
             population
@@ -28,7 +29,6 @@ pub fn genetic_algorithm (
                 .collect()
         };
 
-        // Record best fitness
         let best_fitness = fitnesses
             .iter()
             .map(|m| m.modularity)
@@ -36,17 +36,17 @@ pub fn genetic_algorithm (
             .unwrap();
         best_fitness_history.push(best_fitness);
 
-        // Selection
-        let mut population_with_fitness: Vec<_> = population.into_iter().zip(fitnesses).collect();
+        // 1.1. Selection
+        let mut population_with_fitness: Vec<_> = population.into_par_iter().zip(fitnesses).collect();
         population_with_fitness
             .sort_by(|(_, a), (_, b)| b.modularity.partial_cmp(&a.modularity).unwrap());
         population = population_with_fitness
-            .into_iter()
+            .into_par_iter()
             .take(args.pop_size / 2)
             .map(|(p, _)| p)
             .collect();
 
-        // Create new population
+        // 1.2. New population
         let mut new_population = Vec::with_capacity(args.pop_size);
         while new_population.len() < args.pop_size {
             let parent1 = population.choose(&mut rng).unwrap();
@@ -57,25 +57,24 @@ pub fn genetic_algorithm (
         }
         population = new_population;
 
-        if args.debug {
-            println!(
-                "Generation: {} \t | Best Fitness: {}",
-                generation, best_fitness
-            );
-        }
-    
         if operators::last_x_same(&best_fitness_history){
             if args.debug {
                 println!("[Optimization]: Max Local, breaking...");
             }
             break;
         }
-        
+
+        if args.debug {
+            println!(
+                "Generation: {} \t | Best Fitness: {} | Population Size: {}",
+                generation, best_fitness, population.len()
+            );
+        }
     }
 
     // Find best partition
     let best_partition = population
-        .into_iter()
+        .into_par_iter()
         .max_by_key(|partition| {
             let metrics = operators::calculate_objectives(graph, partition, &degress, args.parallelism);
             (metrics.modularity * 1000.0) as i64

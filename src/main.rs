@@ -14,6 +14,7 @@ use std::time::{Duration, Instant};
 use std::fs::OpenOptions;
 
 mod operators;
+mod pesa_ii;
 mod algorithm;
 mod graph;
 mod args;
@@ -56,7 +57,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let best_partition: BTreeMap<i32, i32>;
     let modularity: f64;
 
-    (best_partition, _, modularity) = algorithm::genetic_algorithm(&graph, args);
+    match args.single_obj {
+        true => {(best_partition, _, modularity) = algorithm::genetic_algorithm(&graph, args);}
+        false => {(best_partition, _, modularity) = pesa_ii::genetic_algorithm(&graph, args);}
+    }
 
     let json = serde_json::to_string_pretty(&best_partition)?;
     fs::write(OUTPUT_PATH, json)?;

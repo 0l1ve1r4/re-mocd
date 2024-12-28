@@ -110,7 +110,7 @@ def run_comparisons(graph_file: str, show_plot: bool):
     # Run the rmocd approach
 
     start = time.time()
-    mocd_partition, modularity = rmocd.run(graph_file)
+    mocd_partition, modularity = rmocd.run(graph_file, debug=True)
 
     if show_plot:
         print(f"rmocd modularity: {modularity}")

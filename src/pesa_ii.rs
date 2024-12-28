@@ -33,7 +33,7 @@ impl Solution {
     }
 }
 
-pub fn pesa2_genetic_algorithm(
+pub fn genetic_algorithm(
     graph: &Graph,
     args: AGArgs,
 ) -> (Partition, Vec<f64>, f64) {
@@ -296,7 +296,7 @@ fn update_archive_parallel(
     archive: &mut Vec<Solution>,
 ) {
     let chunks = new_solutions.par_chunks(100);  // Process in chunks
-    let mut updates: Vec<Solution> = chunks
+    let updates: Vec<Solution> = chunks
         .flat_map(|chunk| {
             chunk
                 .par_iter()
