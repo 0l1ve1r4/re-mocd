@@ -30,16 +30,10 @@ impl Graph {
         self.edges.push((from, to));
         self.nodes.insert(from);
         self.nodes.insert(to);
-        
+
         // Update adjacency list
-        self.adjacency_list
-            .entry(from)
-            .or_insert_with(Vec::new)
-            .push(to);
-        self.adjacency_list
-            .entry(to)
-            .or_insert_with(Vec::new)
-            .push(from);
+        self.adjacency_list.entry(from).or_default().push(to);
+        self.adjacency_list.entry(to).or_default().push(from);
     }
 
     pub fn from_edgelist(path: &Path) -> Result<Self, std::io::Error> {
@@ -60,9 +54,7 @@ impl Graph {
     }
 
     pub fn neighbors(&self, node: &NodeId) -> &[NodeId] {
-        self.adjacency_list
-            .get(node)
-            .map_or(&[], |x| x)
+        self.adjacency_list.get(node).map_or(&[], |x| x)
     }
 
     #[allow(dead_code)]
@@ -81,10 +73,9 @@ impl Graph {
             .iter()
             .map(|&node| (node, self.neighbors(&node).len()))
             .collect();
-    
+
         degrees
     }
-
 }
 
 #[cfg(test)]

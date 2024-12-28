@@ -11,8 +11,7 @@ pub const MAX_GENERATIONS_WITH_SAME_FITNESS: usize = 20;
 // Tolerance for floating-point fitness comparisons
 pub const FITNESS_COMPARISON_EPSILON: f64 = 0.0001;
 
-#[derive(Debug)]
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 #[allow(dead_code)]
 pub struct Metrics {
     pub modularity: f64,
@@ -22,11 +21,11 @@ pub struct Metrics {
 
 impl Metrics {
     pub fn default() -> Self {
-        return Metrics {
+        Metrics {
             modularity: 0.0,
             intra: 0.0,
             inter: 0.0,
-        };
+        }
     }
 }
 
@@ -44,10 +43,7 @@ pub fn calculate_objectives(
     // Build communities from the partition
     let mut communities: HashMap<CommunityId, Vec<NodeId>> = HashMap::default();
     for (&node, &community) in partition {
-        communities
-            .entry(community)
-            .or_default()
-            .push(node);
+        communities.entry(community).or_default().push(node);
     }
 
     let total_edges_doubled = 2.0 * total_edges;
@@ -62,7 +58,7 @@ pub fn calculate_objectives(
 
             // Iterate through neighbors once
             for neighbor in graph.neighbors(&node) {
-                if community_nodes.binary_search(&neighbor).is_ok() {
+                if community_nodes.binary_search(neighbor).is_ok() {
                     community_edges += 1.0;
                 }
             }
@@ -95,7 +91,7 @@ pub fn calculate_objectives(
 
     let intra = 1.0 - (intra_sum / total_edges);
     let mut modularity = 1.0 - intra - inter;
-    modularity = modularity.max(-1.0).min(1.0);
+    modularity = modularity.clamp(-1.0, 1.0);
 
     Metrics {
         modularity,
@@ -124,7 +120,7 @@ pub fn crossover(parent1: &Partition, parent2: &Partition) -> Partition {
     let keys: Vec<NodeId> = parent1.keys().copied().collect();
     let len = keys.len();
     let (idx1, idx2) = {
-        let mut points = vec![rng.gen_range(0..len), rng.gen_range(0..len)];
+        let mut points = [rng.gen_range(0..len), rng.gen_range(0..len)];
         points.sort();
         (points[0], points[1])
     };
@@ -151,7 +147,7 @@ pub fn mutate(partition: &mut Partition, graph: &Graph) {
     }
 }
 
-pub fn last_x_same(vec: &Vec<f64>) -> bool {
+pub fn last_x_same(vec: &[f64]) -> bool {
     if vec.len() < MAX_GENERATIONS_WITH_SAME_FITNESS {
         return false;
     }

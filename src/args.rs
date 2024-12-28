@@ -1,7 +1,7 @@
 use std::fs::metadata;
 
-const INFINITY_POP_SIZE: usize = 1000;
-const INFINITY_GENERATIONS: usize = 10000;
+const INFINITY_POP_SIZE: usize = 0x3E8;
+const INFINITY_GENERATIONS: usize = 0x2710;
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -34,9 +34,11 @@ impl AGArgs {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn parse(args: &Vec<String>) -> AGArgs {
-        if  args.len() < 2 && args[0] != "--library-usage" || 
-            args.iter().any(|a| a == "-h" || a == "--help") {
+        if args.len() < 2 && args[0] != "--library-usage"
+            || args.iter().any(|a| a == "-h" || a == "--help")
+        {
             eprintln!("Usage:");
             eprintln!("\t rmocd [file_path] [arguments]\n");
 
@@ -58,7 +60,7 @@ impl AGArgs {
         let parallelism = !(args.iter().any(|a| a == "-s" || a == "--serial"));
         let debug = args.iter().any(|a| a == "-d" || a == "--debug");
         let infinity = args.iter().any(|a| a == "-i" || a == "--infinity");
-        let single_obj =  args.iter().any(|a| a == "-so" || a == "--single-objective");
+        let single_obj = args.iter().any(|a| a == "-so" || a == "--single-objective");
 
         AGArgs {
             file_path: file_path.to_string(),
@@ -84,7 +86,12 @@ mod tests {
 
     #[test]
     fn test_parse_args() {
-        let args = vec!["rmocd".to_string(), TEST_FILE_PATH.to_string(), "-s".to_string(), "--debug".to_string()];
+        let args = vec![
+            "rmocd".to_string(),
+            TEST_FILE_PATH.to_string(),
+            "-s".to_string(),
+            "--debug".to_string(),
+        ];
         let parsed = AGArgs::parse(&args);
         assert_eq!(parsed.file_path, TEST_FILE_PATH);
         assert!(!parsed.parallelism);
@@ -101,11 +108,14 @@ mod tests {
 
     #[test]
     fn test_infinity_mode() {
-        let args = vec!["rmocd".to_string(), TEST_FILE_PATH.to_string(), "-i".to_string()];
+        let args = vec![
+            "rmocd".to_string(),
+            TEST_FILE_PATH.to_string(),
+            "-i".to_string(),
+        ];
         let parsed = AGArgs::parse(&args);
         assert!(parsed.infinity);
-        assert_eq!(parsed.num_gens, INFINITY_GENERATIONS);        
+        assert_eq!(parsed.num_gens, INFINITY_GENERATIONS);
         println!("{:?}", parsed);
-    
     }
 }

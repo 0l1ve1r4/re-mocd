@@ -1,15 +1,12 @@
-use rayon::prelude::*;
 use operators::Metrics;
 use rand::seq::SliceRandom;
+use rayon::prelude::*;
 
-use crate::operators;
 use crate::args::AGArgs;
 use crate::graph::{Graph, Partition};
+use crate::operators;
 
-pub fn genetic_algorithm (
-    graph: &Graph,
-    args: AGArgs,
-) -> (Partition, Vec<f64>, f64) {
+pub fn genetic_algorithm(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
     let mut rng = rand::thread_rng();
     let mut population = operators::generate_initial_population(graph, args.pop_size);
     let mut best_fitness_history = Vec::with_capacity(args.num_gens);
@@ -37,7 +34,8 @@ pub fn genetic_algorithm (
         best_fitness_history.push(best_fitness);
 
         // 1.1. Selection
-        let mut population_with_fitness: Vec<_> = population.into_par_iter().zip(fitnesses).collect();
+        let mut population_with_fitness: Vec<_> =
+            population.into_par_iter().zip(fitnesses).collect();
         population_with_fitness
             .sort_by(|(_, a), (_, b)| b.modularity.partial_cmp(&a.modularity).unwrap());
         population = population_with_fitness
@@ -57,7 +55,7 @@ pub fn genetic_algorithm (
         }
         population = new_population;
 
-        if operators::last_x_same(&best_fitness_history){
+        if operators::last_x_same(&best_fitness_history) {
             if args.debug {
                 println!("[Optimization]: Max Local, breaking...");
             }
@@ -67,7 +65,9 @@ pub fn genetic_algorithm (
         if args.debug {
             println!(
                 "Generation: {} \t | Best Fitness: {} | Population Size: {}",
-                generation, best_fitness, population.len()
+                generation,
+                best_fitness,
+                population.len()
             );
         }
     }
@@ -76,7 +76,8 @@ pub fn genetic_algorithm (
     let best_partition = population
         .into_par_iter()
         .max_by_key(|partition| {
-            let metrics = operators::calculate_objectives(graph, partition, &degress, args.parallelism);
+            let metrics =
+                operators::calculate_objectives(graph, partition, &degress, args.parallelism);
             (metrics.modularity * 1000.0) as i64
         })
         .unwrap();
@@ -99,21 +100,20 @@ pub fn genetic_algorithm (
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_calculate_objectives() {
         let graph: Graph = Graph::new();
         let partition: Partition = Partition::new();
 
-        assert_eq!(operators::calculate_objectives(&graph, 
-            &partition, 
-            &graph.precompute_degress(),
-            true
-        ), Metrics {
-            inter: 0.0,
-            intra: 0.0,
-            modularity: 0.0,
-        });
+        assert_eq!(
+            operators::calculate_objectives(&graph, &partition, &graph.precompute_degress(), true),
+            Metrics {
+                inter: 0.0,
+                intra: 0.0,
+                modularity: 0.0,
+            }
+        );
     }
 
     #[test]
@@ -122,6 +122,4 @@ mod tests {
         let graph: Graph = Graph::new();
         genetic_algorithm(&graph, AGArgs::default());
     }
-
-
 }

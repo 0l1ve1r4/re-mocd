@@ -1,10 +1,10 @@
 use rayon::prelude::*;
-use std::collections::HashMap;
 use rustc_hash::FxBuildHasher;
+use std::collections::HashMap;
 
-use crate::operators;
 use crate::args::AGArgs;
 use crate::graph::{Graph, Partition};
+use crate::operators;
 
 #[derive(Clone, Debug)]
 struct Solution {
@@ -36,45 +36,47 @@ impl Solution {
 
 const GRID_DIVISIONS: usize = 8;
 
-pub fn genetic_algorithm(
-    graph: &Graph,
-    args: AGArgs,
-) -> (Partition, Vec<f64>, f64) {
+pub fn genetic_algorithm(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
     let mut rng = rand::thread_rng();
     let mut archive: Vec<Solution> = Vec::with_capacity(args.pop_size);
-    let mut population: Vec<std::collections::BTreeMap<i32, i32>> = operators::
-                                                                    generate_initial_population(graph,
-                                                                        args.pop_size);
+    let mut population: Vec<std::collections::BTreeMap<i32, i32>> =
+        operators::generate_initial_population(graph, args.pop_size);
     let mut best_fitness_history: Vec<f64> = Vec::with_capacity(args.num_gens);
     let degrees: HashMap<i32, usize, FxBuildHasher> = graph.precompute_degress();
-        
+
     for generation in 0..args.num_gens {
         let solutions: Vec<Solution> = population
-        .par_chunks(population.len() / rayon::current_num_threads())
-        .flat_map(|chunk| {
-            chunk.iter().map(|partition| {
-                let metrics = operators::calculate_objectives(graph, partition, &degrees, true);
-                Solution {
-                    partition: partition.clone(),
-                    objectives: vec![metrics.modularity, metrics.inter, metrics.intra],
-                }
-            }).collect::<Vec<_>>()
-        })
-        .collect();
+            .par_chunks(population.len() / rayon::current_num_threads())
+            .flat_map(|chunk| {
+                chunk
+                    .iter()
+                    .map(|partition| {
+                        let metrics =
+                            operators::calculate_objectives(graph, partition, &degrees, true);
+                        Solution {
+                            partition: partition.clone(),
+                            objectives: vec![metrics.modularity, metrics.inter, metrics.intra],
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect();
 
         // Update archive with non-dominated solutions
         // TODO: Optimize archive
         for solution in solutions {
-        if !archive.iter().any(|archived: &Solution| archived.dominates(&solution)) {
-            // Remove solutions from archive that are dominated by the new solution
-            archive.retain(|archived: &Solution| !solution.dominates(archived));
-            archive.push(solution);
-        }
-
+            if !archive
+                .iter()
+                .any(|archived: &Solution| archived.dominates(&solution))
+            {
+                // Remove solutions from archive that are dominated by the new solution
+                archive.retain(|archived: &Solution| !solution.dominates(archived));
+                archive.push(solution);
+            }
         }
 
         let hyperboxes: Vec<HyperBox> = create_hypergrid_parallel(&archive, GRID_DIVISIONS);
-        
+
         // Record best fitness (using modularity as primary objective)
         let best_fitness = archive
             .iter()
@@ -87,17 +89,16 @@ pub fn genetic_algorithm(
         let mut new_population = Vec::with_capacity(args.pop_size);
         while new_population.len() < args.pop_size {
             // Select parents using PESA-II selection method
-            let parent1: &Solution;
-            let parent2: &Solution;
-            
-            parent1 = select_from_hypergrid_parallel(&hyperboxes,&mut rng);
-            parent2 = select_from_hypergrid_parallel(&hyperboxes,&mut rng);
-            
-            let mut child: std::collections::BTreeMap<i32, i32> = operators::crossover(&parent1.partition, &parent2.partition);
+
+            let parent1: &Solution = select_from_hypergrid_parallel(&hyperboxes, &mut rng);
+            let parent2: &Solution = select_from_hypergrid_parallel(&hyperboxes, &mut rng);
+
+            let mut child: std::collections::BTreeMap<i32, i32> =
+                operators::crossover(&parent1.partition, &parent2.partition);
             operators::mutate(&mut child, graph);
             new_population.push(child);
         }
-        
+
         population = new_population;
 
         // Early stopping condition
@@ -111,7 +112,9 @@ pub fn genetic_algorithm(
         if args.debug {
             println!(
                 "Generation: {} \t | Best Fitness: {} | Archive size: {}",
-                generation, best_fitness, archive.len()
+                generation,
+                best_fitness,
+                archive.len()
             );
         }
     }
@@ -138,21 +141,29 @@ fn create_hypergrid_parallel(solutions: &[Solution], divisions: usize) -> Vec<Hy
     let obj_len = solutions[0].objectives.len();
     let (min_values, max_values) = rayon::join(
         || {
-            (0..obj_len).into_par_iter().map(|i| {
-                solutions.par_iter()
-                    .map(|s| s.objectives[i])
-                    .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-                    .unwrap()
-            }).collect::<Vec<_>>()
+            (0..obj_len)
+                .into_par_iter()
+                .map(|i| {
+                    solutions
+                        .par_iter()
+                        .map(|s| s.objectives[i])
+                        .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                        .unwrap()
+                })
+                .collect::<Vec<_>>()
         },
         || {
-            (0..obj_len).into_par_iter().map(|i| {
-                solutions.par_iter()
-                    .map(|s| s.objectives[i])
-                    .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-                    .unwrap()
-            }).collect::<Vec<_>>()
-        }
+            (0..obj_len)
+                .into_par_iter()
+                .map(|i| {
+                    solutions
+                        .par_iter()
+                        .map(|s| s.objectives[i])
+                        .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                        .unwrap()
+                })
+                .collect::<Vec<_>>()
+        },
     );
 
     // Use a concurrent HashMap for grouping solutions
@@ -160,7 +171,9 @@ fn create_hypergrid_parallel(solutions: &[Solution], divisions: usize) -> Vec<Hy
     let hyperbox_map = DashMap::new();
 
     solutions.par_iter().for_each(|solution| {
-        let coordinates = solution.objectives.iter()
+        let coordinates = solution
+            .objectives
+            .iter()
             .enumerate()
             .map(|(i, &obj)| {
                 let normalized = if (max_values[i] - min_values[i]).abs() < f64::EPSILON {
@@ -172,27 +185,35 @@ fn create_hypergrid_parallel(solutions: &[Solution], divisions: usize) -> Vec<Hy
             })
             .collect::<Vec<_>>();
 
-        hyperbox_map.entry(coordinates.clone())
+        hyperbox_map
+            .entry(coordinates.clone())
             .and_modify(|solutions: &mut Vec<Solution>| solutions.push(solution.clone()))
             .or_insert_with(|| vec![solution.clone()]);
     });
 
     // Convert DashMap to Vec<HyperBox>
-    hyperbox_map.into_iter()
-        .map(|(coordinates, solutions)| HyperBox { solutions, coordinates })
+    hyperbox_map
+        .into_iter()
+        .map(|(coordinates, solutions)| HyperBox {
+            solutions,
+            coordinates,
+        })
         .collect()
 }
 
 /// Parallel version of select_from_hypergrid
-fn select_from_hypergrid_parallel<'a>(hyperboxes: &'a [HyperBox], rng: &mut impl rand::Rng) -> &'a Solution {
+fn select_from_hypergrid_parallel<'a>(
+    hyperboxes: &'a [HyperBox],
+    rng: &mut impl rand::Rng,
+) -> &'a Solution {
     // Compute total weight in parallel
     let total_weight: f64 = hyperboxes
         .par_iter()
         .map(|hb| 1.0 / (hb.solutions.len() as f64))
         .sum();
-    
+
     let mut random_value = rng.gen::<f64>() * total_weight;
-    
+
     // Selection remains sequential to handle the cumulative weights
     for hyperbox in hyperboxes {
         let weight = 1.0 / (hyperbox.solutions.len() as f64);
@@ -202,7 +223,7 @@ fn select_from_hypergrid_parallel<'a>(hyperboxes: &'a [HyperBox], rng: &mut impl
         }
         random_value -= weight;
     }
-    
+
     // Fallback to last hyperbox
     let last_box = hyperboxes.last().unwrap();
     &last_box.solutions[rng.gen_range(0..last_box.solutions.len())]

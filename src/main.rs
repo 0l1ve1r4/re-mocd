@@ -3,7 +3,6 @@
 // file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
 
 use args::AGArgs;
-use serde_json;
 use std::collections::BTreeMap;
 use std::env;
 use std::fs::{self};
@@ -13,11 +12,11 @@ use std::time::{Duration, Instant};
 
 use std::fs::OpenOptions;
 
+mod algorithm;
+mod args;
+mod graph;
 mod operators;
 mod pesa_ii;
-mod algorithm;
-mod graph;
-mod args;
 
 use crate::graph::Graph;
 
@@ -27,7 +26,6 @@ const OUTPUT_CSV: &str = "res/mocd_output.csv";
 fn save_csv(time_taken: Instant, num_nodes: usize, num_edges: usize, modularity: f64) {
     let elapsed_time = time_taken.elapsed().as_secs_f64();
     let mut file = OpenOptions::new()
-        .write(true)
         .append(true)
         .create(true)
         .open(OUTPUT_CSV)
@@ -40,7 +38,6 @@ fn save_csv(time_taken: Instant, num_nodes: usize, num_edges: usize, modularity:
     )
     .expect("Failed to write to the CSV file");
 }
-
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: AGArgs = AGArgs::parse(&(env::args().collect()));
@@ -58,8 +55,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let modularity: f64;
 
     match args.single_obj {
-        true => {(best_partition, _, modularity) = algorithm::genetic_algorithm(&graph, args);}
-        false => {(best_partition, _, modularity) = pesa_ii::genetic_algorithm(&graph, args);}
+        true => {
+            (best_partition, _, modularity) = algorithm::genetic_algorithm(&graph, args);
+        }
+        false => {
+            (best_partition, _, modularity) = pesa_ii::genetic_algorithm(&graph, args);
+        }
     }
 
     let json = serde_json::to_string_pretty(&best_partition)?;
