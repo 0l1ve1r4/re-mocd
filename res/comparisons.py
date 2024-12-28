@@ -7,6 +7,7 @@ import json
 import sys
 import subprocess
 import time
+import random
 
 import rmocd
 
@@ -106,23 +107,52 @@ def convert_to_node_clustering(partition_dict, graph):
     community_list = list(communities.values())
     return NodeClustering(community_list, graph, "rmocd Algorithm")
 
-def run_comparisons(graph_file: str, show_plot: bool):
-    # Run the rmocd approach
+def generate_ring_of_cliques(file_path: str, m: int, num_cliques: int, noise_edges: int = 0):
+    G = nx.Graph()
 
+    # Create cliques
+    for i in range(num_cliques):
+        clique_nodes = range(i * m, (i + 1) * m)
+        for u in clique_nodes:
+            for v in clique_nodes:
+                if u < v:  # Avoid duplicate edges
+                    G.add_edge(u, v)
+                    
+        # Connect to previous clique with a random edge
+        if i > 0:
+            source = random.randrange(i * m, (i + 1) * m)
+            target = random.randrange((i - 1) * m, i * m)
+            G.add_edge(source, target)
+    
+    # Connect last and first clique
+    source = random.randrange((num_cliques - 1) * m, num_cliques * m)
+    target = random.randrange(0, m)
+    G.add_edge(source, target)
+    
+    # Add some noise edges if specified
+    if noise_edges > 0:
+        all_nodes = list(G.nodes())
+        for _ in range(noise_edges):
+            while True:
+                u = random.choice(all_nodes)
+                v = random.choice(all_nodes)
+                if u != v and not G.has_edge(u, v):
+                    G.add_edge(u, v)
+                    break
+    
+    nx.write_edgelist(G, file_path, delimiter=",", data=False)
+    return G
+
+def run_comparisons(graph_file: str, show_plot: bool):
     start = time.time()
-    mocd_partition, modularity = rmocd.run(graph_file, debug=True)
+    mocd_partition = rmocd.run(graph_file, pesa_ii=True)
 
     if show_plot:
-        print(f"rmocd modularity: {modularity}")
         print(f"Time spent: {time.time() - start}")
 
-    # Read the graph
     G = convert_edgelist_to_graph(graph_file)
-
-    # Convert rmocd partition (dict) to NodeClustering
     mocd_nc = convert_to_node_clustering(mocd_partition, G)
 
-    # Run Louvain and Leiden
     louvain_communities = algorithms.louvain(G)
     leiden_communities = algorithms.leiden(G)
 
@@ -142,6 +172,8 @@ mu_graphs = [f"res/graphs/artificials/mu-0.{i}.edgelist" for i in range(1, 9)]
 if __name__ == "__main__":
     runs_per_file = 10
     
+    generate_ring_of_cliques("ring.edgelist", 10, 10)
+
     has_args = (len(sys.argv) > 1)
     graph_files = None
     num_files = None

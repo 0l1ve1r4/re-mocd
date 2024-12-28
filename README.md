@@ -6,7 +6,7 @@
 
 ## Overview
 
-This project aims to develop a high-performance genetic algorithm in Rust to detect communities in a graph. The goal is to optimize the community detection process to handle large-scale graphs efficiently.
+This project aims to develop a high-performance genetic algorithm in Rust to detect communities in a graph. The goal is to optimize the community detection process to handle large-scale graphs efficiently. This algorithm also tries to handle some problems that happens with louvain algorithm.
 
 > **Why Rust?**  
 >
@@ -26,7 +26,7 @@ Before running the algorithm, you'll need an edge list file formatted as follows
 0,10,{'weight': 2}
 ```
 
-The **weight** attribute is optional. If not provided, it can be represented by an empty dictionary: `{}`.
+The **weight** attribute is optional. If not provided, it can be represented by an empty dictionary: `{}`. You can save a `networkx` graph like this with: `networkx.write_edgelist(G, file_path, delimiter=",", data=False)`
 
 ### Installation via PyPI
 
@@ -38,13 +38,13 @@ pip install rmocd
 
 #### Simple Example (Python)
 
-Here's a simple example of how to use the library in Python:
+Here's a simple example of how to use the library in Python, the function return a dict of the partition found:
 
 ```python
 import rmocd
 
 edgelist_file = "res/graphs/artificials/article.edgelist"
-partition, modularity = rmocd.run(edgelist_file)
+partition = rmocd.run(edgelist_file)
 ```
 
 You can see an [example of plotting](res/example.py), or an example of how to [make comparisons](res/example.py) with other algorithms in `res/`.
