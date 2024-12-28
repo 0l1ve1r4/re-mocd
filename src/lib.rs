@@ -5,12 +5,14 @@ use std::collections::BTreeMap;
 
 mod operators;
 mod algorithm;
+mod pesa_ii;
 mod graph;
 mod args;
 
 #[pyfunction(
     signature = (
         file_path,
+        pesa_ii,
         parallelism = true,
         infinity = false,
         debug = false,
@@ -18,6 +20,7 @@ mod args;
 )]
 fn run (
     file_path: String, 
+    pesa_ii: bool,
     parallelism: bool, 
     infinity: bool, 
     debug:  bool,
@@ -42,7 +45,10 @@ fn run (
     let best_partition: BTreeMap<i32, i32>;
     let modularity: f64;
 
-    (best_partition, _, modularity) = algorithm::genetic_algorithm(&graph, args);
+    match pesa_ii {
+        false => {(best_partition, _, modularity) = algorithm::genetic_algorithm(&graph, args);}
+        true => {(best_partition, _, modularity) = pesa_ii::genetic_algorithm(&graph, args);}
+    }
               
     Ok((best_partition, modularity))
 }

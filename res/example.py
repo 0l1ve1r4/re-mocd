@@ -44,5 +44,5 @@ def visualize_partition(graph: nx.Graph, partition_dict: dict):
 edgelist_file = "res/graphs/artificials/karate.edgelist"
 G = nx.read_edgelist(edgelist_file, delimiter=',', nodetype=int)
 
-mocd_partition, modularity = rmocd.run(edgelist_file, infinity=True)
+mocd_partition, modularity = rmocd.run(edgelist_file, pesa_ii=False, infinity=False)
 visualize_partition(G, mocd_partition)

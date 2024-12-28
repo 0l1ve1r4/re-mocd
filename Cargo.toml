@@ -19,6 +19,7 @@ rustc-hash = { version = "2.1", default-features = true } # a fast hash map impl
 pyo3 = { version = "0.23.3", features = ["extension-module"] }
 serde_json = "1.0.0"    # serializing and deserializing JSON data.
 crossbeam = "0.8"
+dashmap = "6.1.0"  # For concurrent HashMap
 
 [package.metadata.maturin]
 name = "rmocd"
