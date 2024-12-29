@@ -6,10 +6,10 @@ use std::collections::BTreeMap;
 use crate::graph::{CommunityId, Graph, NodeId, Partition};
 
 // Maximum number of generations with unchanged fitness
-pub const MAX_GENERATIONS_WITH_SAME_FITNESS: usize = 7;
+pub const MAX_GENERATIONS_WITH_SAME_FITNESS: usize = 10;
 
 // Tolerance for floating-point fitness comparisons
-pub const FITNESS_COMPARISON_EPSILON: f64 = 0.0001;
+pub const FITNESS_COMPARISON_EPSILON: f64 = 1e-4;
 
 #[derive(Debug, PartialEq)]
 #[allow(dead_code)]

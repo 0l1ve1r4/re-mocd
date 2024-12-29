@@ -1,3 +1,5 @@
+use core::f64;
+
 use operators::Metrics;
 use rand::seq::SliceRandom;
 use rayon::prelude::*;
@@ -6,11 +8,49 @@ use crate::args::AGArgs;
 use crate::graph::{Graph, Partition};
 use crate::operators;
 
+#[derive(Debug)]
+struct BestFitnessGlobal {
+    value: f64,             // Current best global value
+    count: usize,           // Count of generations with the same value
+    exhaustion: usize,      // Max of generations with the same value
+    epsilon: f64,
+}
+
+impl Default for BestFitnessGlobal {
+    fn default() -> Self {
+        BestFitnessGlobal {
+            value: f64::MIN,
+            count: 0,
+            exhaustion: 5,
+            epsilon: 1e-4,
+        }
+    }
+}
+
+impl BestFitnessGlobal {
+    fn verify_exhaustion(&mut self, best_local_fitness: f64) -> bool {
+        if (self.value - best_local_fitness).abs() > self.epsilon {
+            self.value = best_local_fitness;
+            self.count = 0;
+            return false;
+        }
+
+        self.count += 1;
+        if self.count > self.exhaustion {
+            self.count = 0; 
+            return true;
+        }
+        false
+    }
+}
+
 pub fn genetic_algorithm(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
     let mut rng = rand::thread_rng();
     let mut population = operators::generate_initial_population(graph, args.pop_size);
     let mut best_fitness_history = Vec::with_capacity(args.num_gens);
     let degress = graph.precompute_degress();
+    
+    let mut max_local: BestFitnessGlobal = BestFitnessGlobal::default();
 
     /*  1. Evolution */
     for generation in 0..args.num_gens {
@@ -55,10 +95,8 @@ pub fn genetic_algorithm(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f
         }
         population = new_population;
 
-        if operators::last_x_same(&best_fitness_history) {
-            if args.debug {
+        if max_local.verify_exhaustion(best_fitness){
                 println!("[Optimization]: Max Local, breaking...");
-            }
             break;
         }
 

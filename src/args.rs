@@ -24,8 +24,8 @@ impl AGArgs {
     pub fn default() -> AGArgs {
         AGArgs {
             file_path: "default.edgelist".to_string(),
-            num_gens: 800,
-            pop_size: 1000,
+            num_gens: 0x1000,
+            pop_size: 0x0110,
             mut_rate: 0.6,
             cross_rate: 0.9,
             parallelism: false,
@@ -68,8 +68,8 @@ impl AGArgs {
 
         AGArgs {
             file_path: file_path.to_string(),
-            num_gens: if infinity { INFINITY_GENERATIONS } else { 800 },
-            pop_size: if infinity { INFINITY_POP_SIZE } else { 100 },
+            num_gens: if infinity { INFINITY_GENERATIONS } else { 0x3E8 },
+            pop_size: if infinity { INFINITY_POP_SIZE } else { 0x64 },
             mut_rate: 0.3,
             cross_rate: 0.9,
             parallelism,
