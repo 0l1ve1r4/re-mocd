@@ -2,11 +2,11 @@ use rand::seq::SliceRandom;
 use rand::Rng;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap as HashMap;
-
+use std::collections::BTreeMap;
 use crate::graph::{CommunityId, Graph, NodeId, Partition};
 
 // Maximum number of generations with unchanged fitness
-pub const MAX_GENERATIONS_WITH_SAME_FITNESS: usize = 20;
+pub const MAX_GENERATIONS_WITH_SAME_FITNESS: usize = 7;
 
 // Tolerance for floating-point fitness comparisons
 pub const FITNESS_COMPARISON_EPSILON: f64 = 0.0001;
@@ -97,6 +97,91 @@ pub fn calculate_objectives(
         modularity,
         intra,
         inter,
+    }
+}
+
+pub fn optimized_crossover(parent1: &Partition, parent2: &Partition) -> Partition {
+    let mut rng = rand::thread_rng();
+    
+    // Use Vec for faster sequential access
+    let keys: Vec<NodeId> = parent1.keys().copied().collect();
+    let len = keys.len();
+    
+    // Optimize crossover point selection
+    let crossover_points: (usize, usize) = {
+        let point1: usize = rng.gen_range(0..len);
+        let point2: usize = (point1 + rng.gen_range(1..len/2)).min(len - 1);
+        (point1, point2)
+    };
+
+    // Pre-allocate with capacity
+    let mut child: BTreeMap<i32, i32> = Partition::new();
+    
+    // Copy elements before crossover point from parent1
+    keys.iter()
+        .take(crossover_points.0)
+        .for_each(|&key| {
+            if let Some(&community) = parent1.get(&key) {
+                child.insert(key, community);
+            }
+        });
+
+    // Copy elements in crossover region from parent2
+    keys.iter()
+        .skip(crossover_points.0)
+        .take(crossover_points.1 - crossover_points.0)
+        .for_each(|&key| {
+            if let Some(&community) = parent2.get(&key) {
+                child.insert(key, community);
+            }
+        });
+
+    // Copy remaining elements from parent1
+    keys.iter()
+        .skip(crossover_points.1)
+        .for_each(|&key| {
+            if let Some(&community) = parent1.get(&key) {
+                child.insert(key, community);
+            }
+        });
+
+    child
+}
+
+pub fn optimized_mutate(partition: &mut Partition, graph: &Graph, mutation_rate: f64) {
+    let mut rng = rand::thread_rng();
+    
+    // Create a cache of community frequencies for neighbors
+    let mut community_cache: HashMap<NodeId, HashMap<CommunityId, usize>> = HashMap::default();
+    
+    // Select nodes for mutation based on mutation rate
+    let nodes: Vec<NodeId> = partition.keys()
+        .copied()
+        .filter(|_| rng.gen_bool(mutation_rate))
+        .collect();
+
+    for &node in nodes.iter() {
+        let neighbor_communities = community_cache
+            .entry(node)
+            .or_insert_with(|| {
+                let mut freq = HashMap::default();
+                if let Some(neighbors) = graph.adjacency_list.get(&node) {
+                    for &neighbor in neighbors {
+                        if let Some(&community) = partition.get(&neighbor) {
+                            *freq.entry(community).or_insert(0) += 1;
+                        }
+                    }
+                }
+                freq
+            });
+
+        // Select new community based on neighbor frequency
+        if let Some((&new_community, _)) = neighbor_communities
+            .iter()
+            .max_by_key(|&(_, count)| count)
+        {
+            partition.insert(node, new_community);
+        }
     }
 }
 

@@ -70,7 +70,7 @@ impl AGArgs {
             file_path: file_path.to_string(),
             num_gens: if infinity { INFINITY_GENERATIONS } else { 800 },
             pop_size: if infinity { INFINITY_POP_SIZE } else { 100 },
-            mut_rate: 0.6,
+            mut_rate: 0.3,
             cross_rate: 0.9,
             parallelism,
             debug,

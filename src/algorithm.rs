@@ -49,8 +49,8 @@ pub fn genetic_algorithm(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f
         while new_population.len() < args.pop_size {
             let parent1 = population.choose(&mut rng).unwrap();
             let parent2 = population.choose(&mut rng).unwrap();
-            let mut child = operators::crossover(parent1, parent2);
-            operators::mutate(&mut child, graph);
+            let mut child = operators::optimized_crossover(parent1, parent2);
+            operators::optimized_mutate(&mut child, graph, args.mut_rate);
             new_population.push(child);
         }
         population = new_population;
