@@ -8,6 +8,7 @@ __pycache__
 .venv/
 
 # Specific output files
-res/output.json
-res/mocd_output.csv
+output.json
+mocd_output.csv
 *.png
+*.edgelist

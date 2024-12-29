@@ -12,7 +12,7 @@ mod pesa_ii;
 #[pyfunction(
     signature = (
         file_path,
-        pesa_ii = true,
+        pesa_ii = false,
         parallelism = true,
         infinity = false,
         debug = false,

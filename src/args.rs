@@ -15,7 +15,8 @@ pub struct AGArgs {
     pub parallelism: bool,
     pub debug: bool,
     pub infinity: bool,
-    pub single_obj: bool,
+    pub pesa_ii: bool,
+    pub save_csv: bool,
 }
 
 impl AGArgs {
@@ -30,7 +31,8 @@ impl AGArgs {
             parallelism: false,
             debug: false,
             infinity: false,
-            single_obj: false,
+            pesa_ii: false,
+            save_csv: false
         }
     }
 
@@ -47,7 +49,8 @@ impl AGArgs {
             eprintln!("\t -d, --debug               Show debugs (May increase time running);");
             eprintln!("\t -s, --serial              Serial processing (Disable Parallelism);");
             eprintln!("\t -i, --infinity            Stop the algorithm only when reach a local max (slower, but potentially more accurate);");
-            eprintln!("\t -so --single-objective    Run only with a single objective fitness function (faster, but potentially less accurate);");
+            eprintln!("\t -c, --save-csv            Save elapsed Time, graph info and modularity in a .csv;");
+            eprintln!("\t -p, --pesa-ii             Run with a PESA-II pareto Front;");
             eprintln!();
             panic!();
         }
@@ -57,10 +60,11 @@ impl AGArgs {
             panic!("Graph .edgelist file not found: {}", file_path);
         }
 
-        let parallelism = !(args.iter().any(|a| a == "-s" || a == "--serial"));
-        let debug = args.iter().any(|a| a == "-d" || a == "--debug");
-        let infinity = args.iter().any(|a| a == "-i" || a == "--infinity");
-        let single_obj = args.iter().any(|a| a == "-so" || a == "--single-objective");
+        let parallelism: bool = !(args.iter().any(|a| a == "-s" || a == "--serial"));
+        let debug: bool = args.iter().any(|a| a == "-d" || a == "--debug");
+        let infinity: bool = args.iter().any(|a| a == "-i" || a == "--infinity");
+        let pesa_ii: bool = args.iter().any(|a| a == "-p" || a == "--pesa-ii");
+        let save_csv: bool = args.iter().any(|a| a == "-c" || a == "--save-csv");
 
         AGArgs {
             file_path: file_path.to_string(),
@@ -71,7 +75,8 @@ impl AGArgs {
             parallelism,
             debug,
             infinity,
-            single_obj,
+            pesa_ii,
+            save_csv,
         }
     }
 }

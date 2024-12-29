@@ -20,10 +20,10 @@ mod pesa_ii;
 
 use crate::graph::Graph;
 
-const OUTPUT_PATH: &str = "res/output.json";
-const OUTPUT_CSV: &str = "res/mocd_output.csv";
+const OUTPUT_PATH: &str = "output.json";
+const OUTPUT_CSV: &str = "mocd_output.csv";
 
-fn save_csv(time_taken: Instant, num_nodes: usize, num_edges: usize, modularity: f64) {
+fn save_csv(time_taken: Instant, num_nodes: usize, num_edges: usize, modularity: f64) -> () {
     let elapsed_time = time_taken.elapsed().as_secs_f64();
     let mut file = OpenOptions::new()
         .append(true)
@@ -41,39 +41,40 @@ fn save_csv(time_taken: Instant, num_nodes: usize, num_edges: usize, modularity:
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: AGArgs = AGArgs::parse(&(env::args().collect()));
-
-    if args.debug {
-        println!("[DEBUG]: Running by CLI");
-        println!("[DEBUG | AGArgs]: {:?}", args);
-    }
-
     let start: Instant = Instant::now();
     let graph = Graph::from_edgelist(Path::new(&args.file_path))?;
     let reading_time: Duration = start.elapsed();
+    let final_output: bool = args.debug;
+    let save: bool = args.save_csv;
 
     let best_partition: BTreeMap<i32, i32>;
     let modularity: f64;
-
-    match args.single_obj {
+    match args.pesa_ii {
         true => {
-            (best_partition, _, modularity) = algorithm::genetic_algorithm(&graph, args);
+            (best_partition, _, modularity) = pesa_ii::genetic_algorithm(&graph, args);
         }
         false => {
-            (best_partition, _, modularity) = pesa_ii::genetic_algorithm(&graph, args);
+            (best_partition, _, modularity) = algorithm::genetic_algorithm(&graph, args);            
         }
     }
 
     let json = serde_json::to_string_pretty(&best_partition)?;
     fs::write(OUTPUT_PATH, json)?;
-    println!(
-        "Algorithm time {:?} | Reading time: {:?} | Nodes: {:?} | Edges: {:?}",
-        start.elapsed(),
-        reading_time,
-        graph.num_nodes(),
-        graph.num_edges()
-    );
 
-    save_csv(start, graph.num_nodes(), graph.num_edges(), modularity);
+    if final_output {
+        println!(
+            "Elapsed AG/Red. {:?}/{:?} | Nodes/Edges: {:?}/{:?}",
+            start.elapsed(),
+            reading_time,
+            graph.num_nodes(),
+            graph.num_edges()
+        );
+    }
+
+    if save {
+        save_csv(start, graph.num_nodes(), graph.num_edges(), modularity);
+
+    }
 
     Ok(())
 }
