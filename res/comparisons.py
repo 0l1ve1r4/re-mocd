@@ -177,7 +177,10 @@ def generate_ring_of_cliques(file_path: str, m: int, num_cliques: int):
     return G
 
 def run_comparisons(graph_file: str, show_plot: bool):
-    mocd_partition = rmocd.run(graph_file, pesa_ii=False, debug=True)
+    start = time.time()
+    mocd_partition = rmocd.run(graph_file, pesa_ii=False, infinity=False, debug=True)
+    if show_plot:
+        print(f"Elapsed: {time.time() - start}")
     G = convert_edgelist_to_graph(graph_file)
     mocd_nc = convert_to_node_clustering(mocd_partition, G)
 
@@ -188,11 +191,11 @@ def run_comparisons(graph_file: str, show_plot: bool):
     nmi_leiden = compute_nmi(mocd_partition, leiden_communities, G)
 
     if show_plot:
-        visualize_comparison(G, mocd_nc, louvain_communities, nmi_louvain, "output", title="louvain")
-        visualize_comparison(G, mocd_nc, leiden_communities, nmi_leiden, "output", title="Leiden")
+        visualize_comparison(G, mocd_nc, louvain_communities, nmi_louvain, "output_louvain", title="louvain")
+        visualize_comparison(G, mocd_nc, leiden_communities, nmi_leiden, "output_leiden", title="Leiden")
 
 
-def run_mocd_subprocess(graph_file, mocd_path="./target/release/mocd", pesa_ii=False):
+def run_mocd_subprocess(graph_file, mocd_path="./target/release/rmocd", pesa_ii=False):
     """Run MOCD algorithm using subprocess to call the compiled executable."""
     try:
         cmd = [mocd_path, graph_file]
@@ -209,52 +212,31 @@ def run_mocd_subprocess(graph_file, mocd_path="./target/release/mocd", pesa_ii=F
         raise
 
 def make_benchmark():
-    # Initialize parameters
-    base_n = 500  
-    tau1 = 2.0
-    tau2 = 3.5
-    min_degree_factor = 100
-    max_degree_factor = 10
-    min_community_factor = 50
-    max_community_factor = 20
-    num_runs = 100
-
+    num_runs = 10
     random.seed(42)
     results = []
 
     mu_values = [round(0.1 * x, 1) for x in range(1, 10)]
-
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    csv_filename = f"benchmark_results_{timestamp}.csv"
+    csv_filename = f"benchmark_results_{datetime.now().strftime("%Y%m%d")}.csv"
 
     for mu in mu_values:
         for run in range(num_runs):
-            n = 500  
-            min_community = max(30, n // min_community_factor)
-            max_community = max(80, n // max_community_factor)
-            min_degree = max(10, n // min_degree_factor)
-            max_degree = min(50, n // max_degree_factor)
+            n = 5000  
+            min_community = max(30, n // 50)
+            max_community = max(80, n // 20)
+            min_degree = max(10, n // 100)
+            max_degree = min(50, n // 10)
 
             try:
-                G = LFR_benchmark_graph(
-                    n,
-                    tau1,
-                    tau2,
-                    mu,
+                G = LFR_benchmark_graph(n, 2.0, 3.5, mu,
                     min_degree=min_degree,
                     max_degree=max_degree,
                     min_community=min_community,
                     max_community=max_community,
-                    seed=42 + run,  # Different seed for each run
-                )
+                    seed=42)
 
                 save_path = f"temp.edgelist"
-                nx.write_edgelist(
-                    G,
-                    save_path,
-                    delimiter=",",
-                )
-
+                nx.write_edgelist(G, save_path, delimiter=",")
                 start_time = time.time()
                 mocd_partition = run_mocd_subprocess(save_path)
                 execution_time = time.time() - start_time
@@ -266,61 +248,50 @@ def make_benchmark():
                 nmi_louvain = compute_nmi(mocd_partition, louvain_communities, G)
                 nmi_leiden = compute_nmi(mocd_partition, leiden_communities, G)
 
-
-                # Store results
                 result = {
                     'mu': mu,
                     'run': run + 1,
                     'num_nodes': n,
-                    'min_community': min_community,
-                    'max_community': max_community,
-                    'min_degree': min_degree,
-                    'max_degree': max_degree,
                     'nmi_louvain': nmi_louvain,
                     'nmi_leiden': nmi_leiden,
                     'execution_time': execution_time,
-                    'tau1': tau1,
-                    'tau2': tau2,
                 }
                 results.append(result)
 
-                # Save results after each run
                 df = pd.DataFrame(results)
                 df.to_csv(csv_filename, index=False)
 
             except Exception as inst:
                 print(f"Error for mu={mu}, run={run+1}: {inst}")
-                # Log the error in results
-                result = {
-                    'mu': mu,
-                    'run': run + 1,
-                    'error': str(inst),
-                    'tau1': tau1,
-                    'tau2': tau2,
-                }
-                results.append(result)
-
-    # Calculate and save summary statistics
-    summary_df = pd.DataFrame(results)
-    summary_stats = summary_df.groupby('mu').agg({
-        'nmi_louvain': ['mean', 'std'],
-        'nmi_leiden': ['mean', 'std'],
-        'execution_time': ['mean', 'std']
-    }).round(4)
-
-    summary_stats.to_csv(f'benchmark_summary_{timestamp}.csv')
-    
     return results
 
 if __name__ == "__main__":
     runs_per_file = 10
     
+    size = 5
+    sizes = [10 * i for i in range(1, size+1)]  
+    probs = [
+        [0.5 if i == j else 0.1 for j in range(size)] 
+        for i in range(size)
+    ]
+    
+    G = nx.generators.community.stochastic_block_model(sizes, probs, seed=42)
+    save_path = f"temp.edgelist"
+    nx.write_edgelist(
+        G,
+        save_path,
+        delimiter=",",
+    )
+
     generate_ring_of_cliques("ring.edgelist", 7, 6)
 
     has_args = (len(sys.argv) > 1)
     graph_files = None
     num_files = None
     show_plot = False
+
+    if len(sys.argv) <= 1:
+        exit(0)
 
     if sys.argv[1:][0] == "--benchmark":
         make_benchmark()

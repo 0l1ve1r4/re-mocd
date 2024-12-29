@@ -1,0 +1,8 @@
+networkx==3.1
+cdlib==0.2.6
+matplotlib==3.8.0
+numpy==1.26.0
+pandas==2.1.2
+rmocd==1.0.0
+igraph
+leidenalg
