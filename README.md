@@ -1,12 +1,14 @@
 <div align="center">
   <img src="res/logo.png" alt="logo" style="width: 40%;"> 
 
-   <strong>rapid Evolutionaru multi-objective community detection</strong>
-   
+   <strong>rapid evolutionary multi-objective community detection</strong>
+
 ![PyPI - Implementation](https://img.shields.io/pypi/implementation/re_mocd)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/re_mocd)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/re_mocd)
 [![PyPI - Stats](https://img.shields.io/badge/More%20Info-F58025?logo=PyPi)](https://pypistats.org/packages/re_mocd)
+
+<hr>
 
 </div>
 
