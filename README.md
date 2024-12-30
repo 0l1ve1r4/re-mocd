@@ -12,9 +12,7 @@
 
 </div>
 
-
-> **Warning:**  
->
+> [!NOTE]
 > This project is in its early stages, and the algorithm is still being refined. Performance and results may not be optimal yet.
 
 ## Overview
@@ -29,7 +27,8 @@ This project aims to develop a high-performance genetic algorithm in Rust to det
 
 ### Requirements
 
-Before running the algorithm, you'll need an edge list file formatted as follows:
+> [!NOTE]
+> Before running the algorithm, you'll need an edge list file formatted as follows:
 
 ```plaintext
 0,1,{'weight': 4}

@@ -6,3 +6,4 @@ pandas==2.1.2
 re_mocd
 igraph
 leidenalg
+PyQt5
