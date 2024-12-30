@@ -13,7 +13,7 @@ import csv
 import pandas as pd
 from datetime import datetime
 import os
-import rmocd
+import re_mocd
 
 def visualize_comparison(
     graph: nx.Graph, 
@@ -28,7 +28,7 @@ def visualize_comparison(
     # Change from spring_layout to circular_layout
     pos = nx.spring_layout(graph)
 
-    # Visualize rmocd (partition_ga) Communities
+    # Visualize re_mocd (partition_ga) Communities
     communities_ga = partition_ga.communities
     communities_ga_dict = defaultdict(list)
     for idx, community in enumerate(communities_ga):
@@ -67,7 +67,7 @@ def visualize_comparison(
         font_size=8,
         font_weight='bold'
     )
-    axs[0].set_title("Rmocd", pad=20)
+    axs[0].set_title("re_mocd", pad=20)
     axs[0].axis('off')
 
     # Visualize the second algorithm (partition_two) Communities
@@ -151,7 +151,7 @@ def convert_to_node_clustering(partition_dict, graph):
         communities[community].append(node)
 
     community_list = list(communities.values())
-    return NodeClustering(community_list, graph, "rmocd Algorithm")
+    return NodeClustering(community_list, graph, "re_mocd Algorithm")
 
 def generate_ring_of_cliques(file_path: str, m: int, num_cliques: int):
     if num_cliques % 2 != 0:
@@ -178,7 +178,7 @@ def generate_ring_of_cliques(file_path: str, m: int, num_cliques: int):
 
 def run_comparisons(graph_file: str, show_plot: bool):
     start = time.time()
-    mocd_partition = rmocd.run(graph_file, pesa_ii=False, infinity=False, debug=True)
+    mocd_partition = re_mocd.run(graph_file, pesa_ii=False, infinity=False, debug=True)
     if show_plot:
         print(f"Elapsed: {time.time() - start}")
     G = convert_edgelist_to_graph(graph_file)
@@ -195,7 +195,7 @@ def run_comparisons(graph_file: str, show_plot: bool):
         visualize_comparison(G, mocd_nc, leiden_communities, nmi_leiden, "output_leiden", title="Leiden")
 
 
-def run_mocd_subprocess(graph_file, mocd_path="./target/release/rmocd", pesa_ii=False):
+def run_mocd_subprocess(graph_file, mocd_path="./target/release/re_mocd", pesa_ii=False):
     """Run MOCD algorithm using subprocess to call the compiled executable."""
     try:
         cmd = [mocd_path, graph_file]

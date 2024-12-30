@@ -1,4 +1,4 @@
-import rmocd
+import re_mocd
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
@@ -68,5 +68,5 @@ save_path = "example.edgelist"
 G = example_graph(save_path)
 G = nx.read_edgelist(save_path, delimiter=',', nodetype=int)
 
-mocd_partition = rmocd.run(save_path)
+mocd_partition = re_mocd.run(save_path)
 visualize_partition(G, mocd_partition)

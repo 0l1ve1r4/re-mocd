@@ -42,7 +42,7 @@ impl AGArgs {
             || args.iter().any(|a| a == "-h" || a == "--help")
         {
             eprintln!("Usage:");
-            eprintln!("\t rmocd [file_path] [arguments]\n");
+            eprintln!("\t re_mocd [file_path] [arguments]\n");
 
             eprintln!("Options:");
             eprintln!("\t -h, --help                Show this message;");
@@ -88,7 +88,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_missing_file() {
-        let args = vec!["rmocd".to_string(), "missing.edgelist".to_string()];
+        let args = vec!["re_mocd".to_string(), "missing.edgelist".to_string()];
         AGArgs::parse(&args);
     }
 }

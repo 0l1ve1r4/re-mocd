@@ -61,7 +61,7 @@ fn run(
 /// the `lib.name` setting in the `Cargo.toml`, else Python will not be able to
 /// import the module.
 #[pymodule]
-fn rmocd(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn re_mocd(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(run, m)?)?;
     Ok(())
 }

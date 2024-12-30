@@ -1,12 +1,12 @@
 [package]
-name = "rmocd" 
-version = "1.0.0" 
+name = "re_mocd" 
+version = "0.1.0" 
 edition = "2021"
 authors = ["Guilherme Santos"] #
 license = "GPL-3.0-or-later"
 
 [lib]
-name = "rmocd"
+name = "re_mocd"
 crate-type = ["cdylib"]
 
 [profile.release]
@@ -22,4 +22,4 @@ crossbeam = "0.8"
 dashmap = "6.1.0"  # For concurrent HashMap
 
 [package.metadata.maturin]
-name = "rmocd"
+name = "re_mocd"

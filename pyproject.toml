@@ -3,8 +3,8 @@ requires = ["maturin>=1.8.0"]
 build-backend = "maturin"
 
 [project]
-name = "rmocd"
-version = "1.0.0"
+name = "re_mocd"
+version = "0.1.0"
 license = {file = "LICENSE"}
 description = "Rapid multi-objective community detection with parallel computation and caching to efficiently handle large-scale graphs."
 authors = [
@@ -25,5 +25,5 @@ classifiers = [
 ]
 
 [project.urls]
-Repository = "https://github.com/0l1ve1r4/rmocd"
-Issues = "https://github.com/0l1ve1r4/rmocd/issues"
+Repository = "https://github.com/0l1ve1r4/re_mocd"
+Issues = "https://github.com/0l1ve1r4/re_mocd/issues"

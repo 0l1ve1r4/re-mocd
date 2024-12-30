@@ -7,10 +7,10 @@
 
 <hr>
 
-![PyPI - Implementation](https://img.shields.io/pypi/implementation/rmocd)
-![PyPI - Python Version](https://img.shields.io/pypi/pyversions/rmocd)
-![PyPI - Downloads](https://img.shields.io/pypi/dm/rmocd)
-[![PyPI - Stats](https://img.shields.io/badge/More%20Info-F58025?logo=PyPi)](https://pypistats.org/packages/rmocd)
+![PyPI - Implementation](https://img.shields.io/pypi/implementation/re_mocd)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/re_mocd)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/re_mocd)
+[![PyPI - Stats](https://img.shields.io/badge/More%20Info-F58025?logo=PyPi)](https://pypistats.org/packages/re_mocd)
 
 </div>
 
@@ -48,7 +48,7 @@ The **weight** attribute is optional. If not provided, it can be represented by 
 The library is available on PyPI. You can install it using `pip`:
 
 ```bash
-pip install rmocd
+pip install re_mocd
 ```
 
 #### Simple Example (Python)
@@ -56,10 +56,10 @@ pip install rmocd
 Here's a simple example of how to use the library in Python, the function return a dict of the partition found:
 
 ```python
-import rmocd
+import re_mocd
 
 edgelist_file = "res/graphs/artificials/article.edgelist"
-partition = rmocd.run(edgelist_file)
+partition = re_mocd.run(edgelist_file)
 ```
 
 You can see an [example of plotting](res/example.py), or an example of how to [make comparisons](res/example.py) with other algorithms in `res/`.
@@ -76,8 +76,8 @@ You can see an [example of plotting](res/example.py), or an example of how to [m
 
 1. Clone the repository and navigate to the project folder:
    ```bash
-   git clone https://github.com/0l1ve1r4/rmocd
-   cd rmocd
+   git clone https://github.com/0l1ve1r4/re_mocd
+   cd re_mocd
    ```
 
 2. Compile and run the algorithm with your edge list file:
