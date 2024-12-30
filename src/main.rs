@@ -54,7 +54,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             (best_partition, _, modularity) = pesa_ii::genetic_algorithm(&graph, args);
         }
         false => {
-            (best_partition, _, modularity) = algorithm::genetic_algorithm(&graph, args);            
+            (best_partition, _, modularity) = algorithm::genetic_algorithm(&graph, args);
         }
     }
 
@@ -73,7 +73,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if save {
         save_csv(start, graph.num_nodes(), graph.num_edges(), modularity);
-
     }
 
     Ok(())

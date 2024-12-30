@@ -32,7 +32,7 @@ impl AGArgs {
             debug: false,
             infinity: false,
             pesa_ii: false,
-            save_csv: false
+            save_csv: false,
         }
     }
 
@@ -68,7 +68,11 @@ impl AGArgs {
 
         AGArgs {
             file_path: file_path.to_string(),
-            num_gens: if infinity { INFINITY_GENERATIONS } else { 0x3E8 },
+            num_gens: if infinity {
+                INFINITY_GENERATIONS
+            } else {
+                0x3E8
+            },
             pop_size: if infinity { INFINITY_POP_SIZE } else { 0x64 },
             mut_rate: 0.3,
             cross_rate: 0.9,

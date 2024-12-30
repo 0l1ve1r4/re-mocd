@@ -10,9 +10,9 @@ use crate::operators;
 
 #[derive(Debug)]
 struct BestFitnessGlobal {
-    value: f64,             // Current best global value
-    count: usize,           // Count of generations with the same value
-    exhaustion: usize,      // Max of generations with the same value
+    value: f64,        // Current best global value
+    count: usize,      // Count of generations with the same value
+    exhaustion: usize, // Max of generations with the same value
     epsilon: f64,
 }
 
@@ -37,7 +37,7 @@ impl BestFitnessGlobal {
 
         self.count += 1;
         if self.count > self.exhaustion {
-            self.count = 0; 
+            self.count = 0;
             return true;
         }
         false
@@ -49,7 +49,7 @@ pub fn genetic_algorithm(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f
     let mut population = operators::optimized_initial_population(graph, args.pop_size);
     let mut best_fitness_history = Vec::with_capacity(args.num_gens);
     let degress = graph.precompute_degress();
-    
+
     let mut max_local: BestFitnessGlobal = BestFitnessGlobal::default();
 
     /*  1. Evolution */
@@ -95,8 +95,8 @@ pub fn genetic_algorithm(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f
         }
         population = new_population;
 
-        if max_local.verify_exhaustion(best_fitness){
-                println!("[Optimization]: Max Local, breaking...");
+        if max_local.verify_exhaustion(best_fitness) {
+            println!("[Optimization]: Max Local, breaking...");
             break;
         }
 

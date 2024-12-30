@@ -1,10 +1,11 @@
+use crate::graph::{CommunityId, Graph, NodeId, Partition};
 use rand::seq::SliceRandom;
 use rand::Rng;
 use rayon::prelude::*;
+use rustc_hash::FxBuildHasher;
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 use std::collections::BTreeMap;
-use crate::graph::{CommunityId, Graph, NodeId, Partition};
 
 // Maximum number of generations with unchanged fitness
 pub const MAX_GENERATIONS_WITH_SAME_FITNESS: usize = 10;
@@ -108,16 +109,16 @@ pub fn optimized_initial_population(graph: &Graph, population_size: usize) -> Ve
     let mut population = Vec::with_capacity(population_size);
 
     // 1. Random Partitions (33% of population)
-    for _ in 0..population_size/3 {
+    for _ in 0..population_size / 3 {
         let mut partition = BTreeMap::new();
         for &node in &nodes {
-            partition.insert(node, rng.gen_range(0..=(num_nodes/2)) as CommunityId);
+            partition.insert(node, rng.gen_range(0..=(num_nodes / 2)) as CommunityId);
         }
         population.push(partition);
     }
 
     // 2. Neighbor-based Partitions (33% of population)
-    for _ in 0..population_size/3 {
+    for _ in 0..population_size / 3 {
         let mut partition = BTreeMap::new();
         let mut unassigned: HashSet<_> = nodes.iter().copied().collect();
         let mut current_community: CommunityId = 0;
@@ -129,7 +130,7 @@ pub fn optimized_initial_population(graph: &Graph, population_size: usize) -> Ve
             while let Some(node) = to_process.pop() {
                 if unassigned.remove(&node) {
                     partition.insert(node, current_community);
-                    
+
                     // Add some neighbors with 70% probability
                     for &neighbor in graph.neighbors(&node) {
                         if unassigned.contains(&neighbor) && rng.gen_bool(0.7) {
@@ -144,7 +145,7 @@ pub fn optimized_initial_population(graph: &Graph, population_size: usize) -> Ve
     }
 
     // 3. Single-community and Small-community Partitions (remaining population)
-    for i in 2*population_size/3..population_size {
+    for i in 2 * population_size / 3..population_size {
         let mut partition = BTreeMap::new();
         if i % 2 == 0 {
             // Single community
@@ -155,7 +156,7 @@ pub fn optimized_initial_population(graph: &Graph, population_size: usize) -> Ve
             // Two communities based on degree
             for &node in &nodes {
                 let degree = graph.neighbors(&node).len();
-                partition.insert(node, if degree > nodes.len()/2 { 0 } else { 1 });
+                partition.insert(node, if degree > nodes.len() / 2 { 0 } else { 1 });
             }
         }
         population.push(partition);
@@ -166,29 +167,27 @@ pub fn optimized_initial_population(graph: &Graph, population_size: usize) -> Ve
 
 pub fn optimized_crossover(parent1: &Partition, parent2: &Partition) -> Partition {
     let mut rng = rand::thread_rng();
-    
+
     // Use Vec for faster sequential access
     let keys: Vec<NodeId> = parent1.keys().copied().collect();
     let len = keys.len();
-    
+
     // Optimize crossover point selection
     let crossover_points: (usize, usize) = {
         let point1: usize = rng.gen_range(0..len);
-        let point2: usize = (point1 + rng.gen_range(1..len/2)).min(len - 1);
+        let point2: usize = (point1 + rng.gen_range(1..len / 2)).min(len - 1);
         (point1, point2)
     };
 
     // Pre-allocate with capacity
     let mut child: BTreeMap<i32, i32> = Partition::new();
-    
+
     // Copy elements before crossover point from parent1
-    keys.iter()
-        .take(crossover_points.0)
-        .for_each(|&key| {
-            if let Some(&community) = parent1.get(&key) {
-                child.insert(key, community);
-            }
-        });
+    keys.iter().take(crossover_points.0).for_each(|&key| {
+        if let Some(&community) = parent1.get(&key) {
+            child.insert(key, community);
+        }
+    });
 
     // Copy elements in crossover region from parent2
     keys.iter()
@@ -201,37 +200,45 @@ pub fn optimized_crossover(parent1: &Partition, parent2: &Partition) -> Partitio
         });
 
     // Copy remaining elements from parent1
-    keys.iter()
-        .skip(crossover_points.1)
-        .for_each(|&key| {
-            if let Some(&community) = parent1.get(&key) {
-                child.insert(key, community);
-            }
-        });
+    keys.iter().skip(crossover_points.1).for_each(|&key| {
+        if let Some(&community) = parent1.get(&key) {
+            child.insert(key, community);
+        }
+    });
 
     child
 }
 
 pub fn optimized_mutate(partition: &mut Partition, graph: &Graph, mutation_rate: f64) {
     let mut rng = rand::thread_rng();
-    
-    // Create a cache of community frequencies for neighbors
-    let mut community_cache: HashMap<NodeId, HashMap<CommunityId, usize>> = HashMap::default();
-    
-    // Select nodes for mutation based on mutation rate
-    let nodes: Vec<NodeId> = partition.keys()
+
+    // Convert BTreeMap to a faster hash map for the duration of the mutation
+    let partition_size = partition.len();
+    let mut fast_partition: HashMap<NodeId, CommunityId> =
+        HashMap::with_capacity_and_hasher(partition_size, Default::default());
+    fast_partition.extend(partition.iter().map(|(&k, &v)| (k, v)));
+
+    // Pre-calculate nodes to mutate
+    let nodes: Vec<NodeId> = fast_partition
+        .keys()
         .copied()
         .filter(|_| rng.gen_bool(mutation_rate))
         .collect();
 
-    for &node in nodes.iter() {
-        let neighbor_communities = community_cache
-            .entry(node)
-            .or_insert_with(|| {
+    // Pre-allocate community cache with expected size
+    let mut community_cache: HashMap<NodeId, HashMap<CommunityId, usize>> =
+        HashMap::with_capacity_and_hasher(nodes.len(), FxBuildHasher::default());
+
+    // Process nodes in batches for better cache locality
+    const BATCH_SIZE: usize = 64;
+    for node_chunk in nodes.chunks(BATCH_SIZE) {
+        for &node in node_chunk {
+            let neighbor_communities = community_cache.entry(node).or_insert_with(|| {
                 let mut freq = HashMap::default();
                 if let Some(neighbors) = graph.adjacency_list.get(&node) {
+                    freq.reserve(neighbors.len());
                     for &neighbor in neighbors {
-                        if let Some(&community) = partition.get(&neighbor) {
+                        if let Some(&community) = fast_partition.get(&neighbor) {
                             *freq.entry(community).or_insert(0) += 1;
                         }
                     }
@@ -239,14 +246,16 @@ pub fn optimized_mutate(partition: &mut Partition, graph: &Graph, mutation_rate:
                 freq
             });
 
-        // Select new community based on neighbor frequency
-        if let Some((&new_community, _)) = neighbor_communities
-            .iter()
-            .max_by_key(|&(_, count)| count)
-        {
-            partition.insert(node, new_community);
+            if let Some((&new_community, _)) =
+                neighbor_communities.iter().max_by_key(|&(_, count)| count)
+            {
+                fast_partition.insert(node, new_community);
+            }
         }
     }
+    // Update
+    partition.clear();
+    partition.extend(fast_partition.into_iter());
 }
 
 pub fn generate_initial_population(graph: &Graph, population_size: usize) -> Vec<Partition> {
