@@ -1,4 +1,19 @@
-# Rapid Multi-Objective Community Detection
+<div align="center">
+  <!-- <img src="" alt="logo" style="width: 50%;"> -->
+
+<p align="center">
+    <strong>Rapid Multi-Objective Community Detection</strong>
+  </p>
+
+<hr>
+
+![PyPI - Implementation](https://img.shields.io/pypi/implementation/rmocd)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/rmocd)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/rmocd)
+[![PyPI - Stats](https://img.shields.io/badge/More%20Info-F58025?logo=PyPi)](https://pypistats.org/packages/rmocd)
+
+</div>
+
 
 > **Warning:**  
 >
