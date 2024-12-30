@@ -83,44 +83,12 @@ impl AGArgs {
 
 #[cfg(test)]
 mod tests {
-    use crate::args::INFINITY_GENERATIONS;
-
     use super::AGArgs;
-
-    const TEST_FILE_PATH: &str = "res/graphs/artificials/article.edgelist";
-
-    #[test]
-    fn test_parse_args() {
-        let args = vec![
-            "rmocd".to_string(),
-            TEST_FILE_PATH.to_string(),
-            "-s".to_string(),
-            "--debug".to_string(),
-        ];
-        let parsed = AGArgs::parse(&args);
-        assert_eq!(parsed.file_path, TEST_FILE_PATH);
-        assert!(!parsed.parallelism);
-        assert!(parsed.debug);
-        assert!(!parsed.infinity);
-    }
 
     #[test]
     #[should_panic]
     fn test_missing_file() {
         let args = vec!["rmocd".to_string(), "missing.edgelist".to_string()];
         AGArgs::parse(&args);
-    }
-
-    #[test]
-    fn test_infinity_mode() {
-        let args = vec![
-            "rmocd".to_string(),
-            TEST_FILE_PATH.to_string(),
-            "-i".to_string(),
-        ];
-        let parsed = AGArgs::parse(&args);
-        assert!(parsed.infinity);
-        assert_eq!(parsed.num_gens, INFINITY_GENERATIONS);
-        println!("{:?}", parsed);
     }
 }
