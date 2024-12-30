@@ -1,5 +1,5 @@
 <div align="center">
-  <!-- <img src="" alt="logo" style="width: 50%;"> -->
+  <img src="res/logo.png" alt="logo" style="width: 40%;"> 
 
 <p align="center">
     <strong>Rapid Multi-Objective Community Detection</strong>
