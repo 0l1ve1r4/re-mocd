@@ -221,7 +221,7 @@ def make_benchmark():
 
     for mu in mu_values:
         for run in range(num_runs):
-            n = 1000  
+            n = 5000 
             min_community = max(30, n // 50)
             max_community = max(80, n // 20)
             min_degree = max(10, n // 100)

@@ -1,12 +1,8 @@
 <div align="center">
   <img src="res/logo.png" alt="logo" style="width: 40%;"> 
 
-<p align="center">
-    <strong>Rapid Multi-Objective Community Detection</strong>
-  </p>
-
-<hr>
-
+   <strong>rapid Evolutionaru multi-objective community detection</strong>
+   
 ![PyPI - Implementation](https://img.shields.io/pypi/implementation/re_mocd)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/re_mocd)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/re_mocd)
@@ -48,7 +44,7 @@ The **weight** attribute is optional. If not provided, it can be represented by 
 The library is available on PyPI. You can install it using `pip`:
 
 ```bash
-pip install re_mocd
+pip install re-mocd
 ```
 
 #### Simple Example (Python)

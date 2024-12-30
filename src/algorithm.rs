@@ -46,7 +46,7 @@ impl BestFitnessGlobal {
 
 pub fn genetic_algorithm(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
     let mut rng = rand::thread_rng();
-    let mut population = operators::generate_initial_population(graph, args.pop_size);
+    let mut population = operators::optimized_initial_population(graph, args.pop_size);
     let mut best_fitness_history = Vec::with_capacity(args.num_gens);
     let degress = graph.precompute_degress();
     
