@@ -12,3 +12,4 @@ output.json
 mocd_output.csv
 *.png
 *.edgelist
+*.csv

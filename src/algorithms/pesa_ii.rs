@@ -1,13 +1,23 @@
+//! algorithms/pesa_ii.rs
+//! Implements the Pareto Envelope-based Selection Algorithm II (PESA-II)
+//! This Source Code Form is subject to the terms of The GNU General Public License v3.0
+//! Copyright 2024 - Guilherme Santos. If a copy of the MPL was not distributed with this
+//! file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
+
 use rayon::prelude::*;
 use rustc_hash::FxBuildHasher;
 use std::collections::HashMap;
 
-use crate::args::AGArgs;
 use crate::graph::{Graph, Partition};
-use crate::operators;
+use crate::utils::args::AGArgs;
+
+use crate::operators::crossover::optimized_crossover;
+use crate::operators::mutation::optimized_mutate;
+use crate::operators::objective::calculate_objectives;
+use crate::operators::population::generate_optimized_population;
 
 mod hypergrid;
-use hypergrid::{Solution, HyperBox};
+use hypergrid::{HyperBox, Solution};
 
 #[derive(Debug)]
 struct BestFitnessGlobal {
@@ -45,11 +55,10 @@ impl BestFitnessGlobal {
     }
 }
 
-pub fn genetic_algorithm(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
+pub fn run(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
     let mut rng = rand::thread_rng();
     let mut archive: Vec<Solution> = Vec::with_capacity(args.pop_size);
-    let mut population: Vec<std::collections::BTreeMap<i32, i32>> =
-        operators::optimized_initial_population(graph, args.pop_size);
+    let mut population = generate_optimized_population(graph, args.pop_size);
     let mut best_fitness_history: Vec<f64> = Vec::with_capacity(args.num_gens);
     let degrees: HashMap<i32, usize, FxBuildHasher> = graph.precompute_degress();
 
@@ -62,8 +71,7 @@ pub fn genetic_algorithm(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f
                 chunk
                     .iter()
                     .map(|partition| {
-                        let metrics =
-                            operators::calculate_objectives(graph, partition, &degrees, true);
+                        let metrics = calculate_objectives(graph, partition, &degrees, true);
                         hypergrid::Solution {
                             partition: partition.clone(),
                             objectives: vec![metrics.modularity, metrics.inter, metrics.intra],
@@ -104,9 +112,9 @@ pub fn genetic_algorithm(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f
             let parent1: &Solution = hypergrid::select(&hyperboxes, &mut rng);
             let parent2: &Solution = hypergrid::select(&hyperboxes, &mut rng);
 
-            let mut child: std::collections::BTreeMap<i32, i32> =
-                operators::optimized_crossover(&parent1.partition, &parent2.partition);
-            operators::optimized_mutate(&mut child, graph, args.mut_rate);
+            let mut child = optimized_crossover(&parent1.partition, &parent2.partition);
+
+            optimized_mutate(&mut child, graph, args.mut_rate);
             new_population.push(child);
         }
 
@@ -140,4 +148,3 @@ pub fn genetic_algorithm(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f
         best_solution.objectives[0],
     )
 }
-

@@ -12,6 +12,11 @@ crate-type = ["cdylib"]
 [profile.release]
 debug = true 
 
+[features]
+cli = []
+python = []
+default = ["cli"]
+
 [dependencies]
 rand = "0.8"            # random number generation.
 rayon = "1.7"           # data parallelism and multi-threading support.

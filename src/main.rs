@@ -1,8 +1,9 @@
-// This Source Code Form is subject to the terms of The GNU General Public License v3.0
-// Copyright 2024 - Guilherme Santos. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
+//! main.rs
+//! Implements the algorithm to be run by command line interface
+//! This Source Code Form is subject to the terms of The GNU General Public License v3.0
+//! Copyright 2024 - Guilherme Santos. If a copy of the MPL was not distributed with this
+//! file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
 
-use args::AGArgs;
 use std::collections::BTreeMap;
 use std::env;
 use std::fs::{self};
@@ -12,18 +13,20 @@ use std::time::{Duration, Instant};
 
 use std::fs::OpenOptions;
 
-mod algorithm;
-mod args;
+mod algorithms;
 mod graph;
 mod operators;
-mod pesa_ii;
+mod utils;
 
-use crate::graph::Graph;
+use algorithms::algorithm;
+use algorithms::pesa_ii;
+use graph::Graph;
+use utils::args::AGArgs;
 
 const OUTPUT_PATH: &str = "output.json";
 const OUTPUT_CSV: &str = "mocd_output.csv";
 
-fn save_csv(time_taken: Instant, num_nodes: usize, num_edges: usize, modularity: f64) -> () {
+fn save_csv(time_taken: Instant, num_nodes: usize, num_edges: usize, modularity: f64) {
     let elapsed_time = time_taken.elapsed().as_secs_f64();
     let mut file = OpenOptions::new()
         .append(true)
@@ -51,10 +54,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let modularity: f64;
     match args.pesa_ii {
         true => {
-            (best_partition, _, modularity) = pesa_ii::genetic_algorithm(&graph, args);
+            (best_partition, _, modularity) = pesa_ii::run(&graph, args);
         }
         false => {
-            (best_partition, _, modularity) = algorithm::genetic_algorithm(&graph, args);
+            (best_partition, _, modularity) = algorithm::run(&graph, args);
         }
     }
 

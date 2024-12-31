@@ -1,12 +1,21 @@
-use core::f64;
+//! algorithms/algorithm.rs
+//! Genetic algorithm without PESA-II Implementation
+//! This Source Code Form is subject to the terms of The GNU General Public License v3.0
+//! Copyright 2024 - Guilherme Santos. If a copy of the MPL was not distributed with this
+//! file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
 
-use operators::Metrics;
+use core::f64;
 use rand::seq::SliceRandom;
 use rayon::prelude::*;
 
-use crate::args::AGArgs;
 use crate::graph::{Graph, Partition};
-use crate::operators;
+use crate::utils::args::AGArgs;
+
+use crate::operators::crossover::optimized_crossover;
+use crate::operators::metrics::Metrics;
+use crate::operators::mutation::optimized_mutate;
+use crate::operators::objective::calculate_objectives;
+use crate::operators::population::generate_optimized_population;
 
 #[derive(Debug)]
 struct BestFitnessGlobal {
@@ -44,9 +53,9 @@ impl BestFitnessGlobal {
     }
 }
 
-pub fn genetic_algorithm(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
+pub fn run(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
     let mut rng = rand::thread_rng();
-    let mut population = operators::optimized_initial_population(graph, args.pop_size);
+    let mut population = generate_optimized_population(graph, args.pop_size);
     let mut best_fitness_history = Vec::with_capacity(args.num_gens);
     let degress = graph.precompute_degress();
 
@@ -57,12 +66,12 @@ pub fn genetic_algorithm(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f
         let fitnesses: Vec<Metrics> = if args.parallelism {
             population
                 .par_iter()
-                .map(|partition| operators::calculate_objectives(graph, partition, &degress, true))
+                .map(|partition| calculate_objectives(graph, partition, &degress, true))
                 .collect()
         } else {
             population
                 .iter()
-                .map(|partition| operators::calculate_objectives(graph, partition, &degress, false))
+                .map(|partition| calculate_objectives(graph, partition, &degress, false))
                 .collect()
         };
 
@@ -89,8 +98,9 @@ pub fn genetic_algorithm(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f
         while new_population.len() < args.pop_size {
             let parent1 = population.choose(&mut rng).unwrap();
             let parent2 = population.choose(&mut rng).unwrap();
-            let mut child = operators::optimized_crossover(parent1, parent2);
-            operators::optimized_mutate(&mut child, graph, args.mut_rate);
+            let mut child = optimized_crossover(parent1, parent2);
+
+            optimized_mutate(&mut child, graph, args.mut_rate);
             new_population.push(child);
         }
         population = new_population;
@@ -114,8 +124,7 @@ pub fn genetic_algorithm(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f
     let best_partition = population
         .into_par_iter()
         .max_by_key(|partition| {
-            let metrics =
-                operators::calculate_objectives(graph, partition, &degress, args.parallelism);
+            let metrics = calculate_objectives(graph, partition, &degress, args.parallelism);
             (metrics.modularity * 1000.0) as i64
         })
         .unwrap();
@@ -138,14 +147,13 @@ pub fn genetic_algorithm(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn test_calculate_objectives() {
         let graph: Graph = Graph::new();
         let partition: Partition = Partition::new();
 
         assert_eq!(
-            operators::calculate_objectives(&graph, &partition, &graph.precompute_degress(), true),
+            calculate_objectives(&graph, &partition, &graph.precompute_degress(), true),
             Metrics {
                 inter: 0.0,
                 intra: 0.0,
@@ -158,6 +166,6 @@ mod tests {
     #[should_panic]
     fn test_panic_ga() {
         let graph: Graph = Graph::new();
-        genetic_algorithm(&graph, AGArgs::default());
+        run(&graph, AGArgs::default());
     }
 }

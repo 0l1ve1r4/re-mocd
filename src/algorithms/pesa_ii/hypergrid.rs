@@ -1,5 +1,10 @@
-use rayon::prelude::*;
+//! algorithms/pesa_ii/hypergrid.rs
+//! This Source Code Form is subject to the terms of The GNU General Public License v3.0
+//! Copyright 2024 - Guilherme Santos. If a copy of the MPL was not distributed with this
+//! file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.h
+
 use crate::graph::Partition;
+use rayon::prelude::*;
 use std::cmp::Ordering;
 
 pub const GRID_DIVISIONS: usize = 8;
@@ -41,7 +46,7 @@ impl Solution {
 
 /// Truncates the archive to maintain a maximum size while preserving diversity
 /// Uses the hyperbox density to make removal decisions
-/// 
+///
 /// # Arguments
 /// * `archive` - Mutable reference to the archive of solutions
 /// * `max_size` - Maximum allowed size for the archive (recommended: 100-200)
@@ -51,8 +56,8 @@ pub fn truncate_archive(archive: &mut Vec<Solution>, max_size: usize) {
     }
 
     // Create hyperboxes to analyze density
-    let hyperboxes = create(&archive, GRID_DIVISIONS);
-    
+    let hyperboxes = create(archive, GRID_DIVISIONS);
+
     // Create a map of solutions to their hyperbox density
     let mut solution_densities: Vec<(usize, f64)> = archive
         .iter()
@@ -88,7 +93,7 @@ pub fn truncate_archive(archive: &mut Vec<Solution>, max_size: usize) {
     // We need to remove from highest index to lowest to maintain validity
     let mut indices_to_remove = indices_to_remove;
     indices_to_remove.sort_unstable_by(|a, b| b.cmp(a));
-    
+
     for index in indices_to_remove {
         archive.remove(index);
     }
@@ -101,8 +106,8 @@ pub fn truncate_archive_extended(archive: &mut Vec<Solution>, max_size: usize) {
     }
 
     // Create hyperboxes
-    let hyperboxes = create(&archive, GRID_DIVISIONS);
-    
+    let hyperboxes = create(archive, GRID_DIVISIONS);
+
     // Calculate crowding distances within each hyperbox
     let mut solution_scores: Vec<(usize, f64)> = archive
         .iter()
@@ -119,7 +124,7 @@ pub fn truncate_archive_extended(archive: &mut Vec<Solution>, max_size: usize) {
 
             // Calculate crowding distance within hyperbox
             let crowding_distance = calculate_crowding_distance(solution, &hyperbox.solutions);
-            
+
             // Combined score: higher density is worse, higher crowding distance is better
             let score = hyperbox.density() / (crowding_distance + 1.0);
             (index, score)
@@ -142,7 +147,7 @@ pub fn truncate_archive_extended(archive: &mut Vec<Solution>, max_size: usize) {
 
     let mut indices_to_remove = indices_to_remove;
     indices_to_remove.sort_unstable_by(|a, b| b.cmp(a));
-    
+
     for index in indices_to_remove {
         archive.remove(index);
     }
@@ -253,10 +258,7 @@ pub fn create(solutions: &[Solution], divisions: usize) -> Vec<HyperBox> {
 }
 
 /// Parallel version of select_from_hypergrid
-pub fn select<'a>(
-    hyperboxes: &'a [HyperBox],
-    rng: &mut impl rand::Rng,
-) -> &'a Solution {
+pub fn select<'a>(hyperboxes: &'a [HyperBox], rng: &mut impl rand::Rng) -> &'a Solution {
     // Compute total weight in parallel
     let total_weight: f64 = hyperboxes
         .par_iter()

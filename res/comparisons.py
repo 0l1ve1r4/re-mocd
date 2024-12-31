@@ -179,7 +179,7 @@ def generate_ring_of_cliques(file_path: str, m: int, num_cliques: int):
 
 def run_comparisons(graph_file: str, show_plot: bool):
     start = time.time()
-    mocd_partition = re_mocd.run(graph_file, pesa_ii=False, infinity=False, debug=True)
+    mocd_partition = run_mocd_subprocess(graph_file, pesa_ii=True)
     if show_plot:
         print(f"Elapsed: {time.time() - start}")
     G = convert_edgelist_to_graph(graph_file)
@@ -383,11 +383,6 @@ def stochastic_benchmark(max_size: int):
 if __name__ == "__main__":
     runs_per_file = 30
     
-    stochastic_benchmark(50)
-    exit(0)
-
-    generate_ring_of_cliques("ring.edgelist", 7, 6)
-
     has_args = (len(sys.argv) > 1)
     graph_files = None
     num_files = None
@@ -399,6 +394,16 @@ if __name__ == "__main__":
     if sys.argv[1:][0] == "--benchmark":
         make_benchmark()
         print("Done")
+        exit(0)
+
+    if sys.argv[1:][0] == "--benchmark-2":
+        stochastic_benchmark(50)
+
+    if sys.argv[1:][0] == "--ring":
+        file = "ring.edgelist"
+        generate_ring_of_cliques("ring.edgelist", 5, 20)
+        run_comparisons(file, True)
+        print("Done.")
         exit(0)
 
     if has_args:
@@ -416,4 +421,3 @@ if __name__ == "__main__":
             for _ in range(runs_per_file):
                 run_comparisons(graph_files[i], show_plot)
 
-    print("Done.")

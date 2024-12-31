@@ -1,3 +1,9 @@
+//! operators/mod.rs
+//! Optimized Graph definitions
+//! This Source Code Form is subject to the terms of The GNU General Public License v3.0
+//! Copyright 2024 - Guilherme Santos. If a copy of the MPL was not distributed with this
+//! file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
+
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 
@@ -15,6 +21,12 @@ pub struct Graph {
     pub edges: Vec<(NodeId, NodeId)>,
     pub nodes: HashSet<NodeId>,
     pub adjacency_list: HashMap<NodeId, Vec<NodeId>>,
+}
+
+impl Default for Graph {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Graph {
