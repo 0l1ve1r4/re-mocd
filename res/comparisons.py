@@ -14,6 +14,7 @@ import pandas as pd
 from datetime import datetime
 import os
 import re_mocd
+import seaborn as sns
 
 def visualize_comparison(
     graph: nx.Graph, 
@@ -198,7 +199,7 @@ def run_comparisons(graph_file: str, show_plot: bool):
 def run_mocd_subprocess(graph_file, mocd_path="./target/release/re_mocd", pesa_ii=False):
     """Run MOCD algorithm using subprocess to call the compiled executable."""
     try:
-        cmd = [mocd_path, graph_file]
+        cmd = [mocd_path, graph_file, "-d"]
         if pesa_ii:
             cmd.append("--pesa-ii")
 
@@ -221,7 +222,7 @@ def make_benchmark():
 
     for mu in mu_values:
         for run in range(num_runs):
-            n = 5000 
+            n = 1000 
             min_community = max(30, n // 50)
             max_community = max(80, n // 20)
             min_degree = max(10, n // 100)
@@ -265,23 +266,125 @@ def make_benchmark():
                 print(f"Error for mu={mu}, run={run+1}: {inst}")
     return results
 
+def stochastic_benchmark(max_size: int):
+    results = []  # List to store the results
+    
+    for size in range(1, max_size + 1):
+        sizes = [max(6, int(20 * random.random())) for _ in range(size)]
+
+        print(f"Gen: {size}")
+
+        # More distinct community structure
+        # Higher intra-community and lower inter-community probabilities
+        probs = np.zeros((size, size))
+        for i in range(size):
+            for j in range(size):
+                if i == j:
+                    # Intra-community probability (higher)
+                    probs[i][j] = 0.7  
+                else:
+                    # Inter-community probability (lower)
+                    probs[i][j] = 0.05 
+
+        G = nx.generators.community.stochastic_block_model(sizes, probs, seed=42)
+        save_path = f"temp.edgelist"
+        nx.write_edgelist(
+            G,
+            save_path,
+            delimiter=",",
+        )
+
+        # True number of communities
+        true_num_communities = len(sizes)
+
+        # Get MOCD, Louvain, and Leiden partitions
+        mocd_partition = run_mocd_subprocess(save_path, pesa_ii=True)
+        mocd_nc = convert_to_node_clustering(mocd_partition, G)
+        louvain_communities = algorithms.louvain(G)
+        leiden_communities = algorithms.leiden(G)
+
+        # Compute NMI
+        nmi_louvain = compute_nmi(mocd_partition, louvain_communities, G)
+        nmi_leiden = compute_nmi(mocd_partition, leiden_communities, G)
+
+        # Count the number of communities
+        mocd_num_communities = len(set(mocd_partition.values()))
+        louvain_num_communities = len(louvain_communities.communities)
+        leiden_num_communities = len(leiden_communities.communities)
+
+        # Save results
+        results.append({
+            "true_num_communities": true_num_communities,
+            "nmi_louvain": nmi_louvain,
+            "nmi_leiden": nmi_leiden,
+            "mocd_num_communities": mocd_num_communities,
+            "louvain_num_communities": louvain_num_communities,
+            "leiden_num_communities": leiden_num_communities,
+        })
+
+    # Convert results to DataFrame for easier plotting
+    df = pd.DataFrame(results)
+    
+    # Calculate success rates (how close the detected communities are to true communities)
+    df['mocd_success'] = 1 - abs(df['mocd_num_communities'] - df['true_num_communities']) / df['true_num_communities']
+    df['louvain_success'] = 1 - abs(df['louvain_num_communities'] - df['true_num_communities']) / df['true_num_communities']
+    df['leiden_success'] = 1 - abs(df['leiden_num_communities'] - df['true_num_communities']) / df['true_num_communities']
+
+    # Set the style
+    sns.set_style("whitegrid")
+    plt.style.use('seaborn-v0_8')
+    
+    # Create figure with three subplots
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 15))
+
+    # First subplot: NMI vs True Communities
+    sns.lineplot(data=df, x='true_num_communities', y='nmi_louvain', 
+                marker='o', label='Louvain', ax=ax1)
+    sns.lineplot(data=df, x='true_num_communities', y='nmi_leiden', 
+                marker='o', label='Leiden', ax=ax1)
+    ax1.set_xlabel('True Number of Communities')
+    ax1.set_ylabel('NMI')
+
+    # Second subplot: Detected Communities vs True Communities
+    sns.lineplot(data=df, x='true_num_communities', y='mocd_num_communities', 
+                marker='o', label='Re-MOCD', ax=ax2)
+    sns.lineplot(data=df, x='true_num_communities', y='louvain_num_communities', 
+                marker='o', label='Louvain', ax=ax2)
+    sns.lineplot(data=df, x='true_num_communities', y='leiden_num_communities', 
+                marker='o', label='Leiden', ax=ax2)
+    ax2.set_xlabel('True Number of Communities')
+    ax2.set_ylabel('Detected Communities')
+
+    # Third subplot: Success Rate
+    sns.lineplot(data=df, x='true_num_communities', y='mocd_success', 
+                marker='o', label='Re-MOCD', ax=ax3)
+    sns.lineplot(data=df, x='true_num_communities', y='louvain_success', 
+                marker='o', label='Louvain', ax=ax3)
+    sns.lineplot(data=df, x='true_num_communities', y='leiden_success', 
+                marker='o', label='Leiden', ax=ax3)
+    ax3.set_xlabel('True Number of Communities')
+    ax3.set_ylabel('Success Rate')
+    ax3.set_ylim(0, 1)
+
+    # Customize the appearance
+    for ax in [ax1, ax2, ax3]:
+        ax.grid(True, linestyle='--', alpha=0.7)
+        ax.legend(frameon=True, fancybox=True, shadow=True)
+        for spine in ax.spines.values():
+            spine.set_edgecolor('#444444')
+
+    # Adjust layout
+
+    df.to_csv("benchmark.csv")
+
+    plt.tight_layout()
+    plt.show()
+
 if __name__ == "__main__":
-    runs_per_file = 10
+    runs_per_file = 30
     
-    size = 5
-    sizes = [10 * i for i in range(1, size+1)]  
-    probs = [
-        [0.5 if i == j else 0.1 for j in range(size)] 
-        for i in range(size)
-    ]
-    
-    G = nx.generators.community.stochastic_block_model(sizes, probs, seed=42)
-    save_path = f"temp.edgelist"
-    nx.write_edgelist(
-        G,
-        save_path,
-        delimiter=",",
-    )
+    stochastic_benchmark(50)
+    exit(0)
 
     generate_ring_of_cliques("ring.edgelist", 7, 6)
 

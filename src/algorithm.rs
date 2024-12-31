@@ -22,7 +22,7 @@ impl Default for BestFitnessGlobal {
             value: f64::MIN,
             count: 0,
             exhaustion: 5,
-            epsilon: 1e-4,
+            epsilon: 1e-6,
         }
     }
 }
@@ -95,8 +95,8 @@ pub fn genetic_algorithm(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f
         }
         population = new_population;
 
-        if max_local.verify_exhaustion(best_fitness) {
-            println!("[Optimization]: Max Local, breaking...");
+        if max_local.verify_exhaustion(best_fitness) && args.debug {
+            println!("[Optimization]: Converged, breaking...");
             break;
         }
 

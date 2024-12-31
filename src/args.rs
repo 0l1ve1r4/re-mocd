@@ -73,7 +73,7 @@ impl AGArgs {
             } else {
                 0x3E8
             },
-            pop_size: if infinity { INFINITY_POP_SIZE } else { 0x64 },
+            pop_size: if infinity { INFINITY_POP_SIZE } else { 0x164 },
             mut_rate: 0.3,
             cross_rate: 0.9,
             parallelism,
