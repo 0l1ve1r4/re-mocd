@@ -21,7 +21,6 @@ pub struct AGArgs {
     pub parallelism: bool,
     pub debug: bool,
     pub infinity: bool,
-    pub pesa_ii: bool,
     pub save_csv: bool,
 }
 
@@ -37,7 +36,6 @@ impl AGArgs {
             parallelism: false,
             debug: false,
             infinity: false,
-            pesa_ii: false,
             save_csv: false,
         }
     }
@@ -69,7 +67,6 @@ impl AGArgs {
         let parallelism: bool = !(args.iter().any(|a| a == "-s" || a == "--serial"));
         let debug: bool = args.iter().any(|a| a == "-d" || a == "--debug");
         let infinity: bool = args.iter().any(|a| a == "-i" || a == "--infinity");
-        let pesa_ii: bool = args.iter().any(|a| a == "-p" || a == "--pesa-ii");
         let save_csv: bool = args.iter().any(|a| a == "-c" || a == "--save-csv");
 
         AGArgs {
@@ -85,7 +82,6 @@ impl AGArgs {
             parallelism,
             debug,
             infinity,
-            pesa_ii,
             save_csv,
         }
     }

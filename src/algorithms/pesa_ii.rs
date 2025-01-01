@@ -12,9 +12,9 @@ use crate::graph::{Graph, Partition};
 use crate::utils::args::AGArgs;
 
 use crate::operators::crossover;
-use crate::operators::mutation;
-use crate::operators::get_fitness;
 use crate::operators::generate_population;
+use crate::operators::get_fitness;
+use crate::operators::mutation;
 
 mod hypergrid;
 use hypergrid::{HyperBox, Solution};

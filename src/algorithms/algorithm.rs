@@ -11,11 +11,11 @@ use rayon::prelude::*;
 use crate::graph::{Graph, Partition};
 use crate::utils::args::AGArgs;
 
-use crate::operators::metrics::Metrics;
 use crate::operators::crossover;
-use crate::operators::mutation;
-use crate::operators::get_fitness;
 use crate::operators::generate_population;
+use crate::operators::get_fitness;
+use crate::operators::metrics::Metrics;
+use crate::operators::mutation;
 use crate::operators::selection;
 
 #[derive(Debug)]

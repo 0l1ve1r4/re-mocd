@@ -179,7 +179,7 @@ def generate_ring_of_cliques(file_path: str, m: int, num_cliques: int):
 
 def run_comparisons(graph_file: str, show_plot: bool):
     start = time.time()
-    mocd_partition = run_mocd_subprocess(graph_file, pesa_ii=True)
+    mocd_partition = run_mocd_subprocess(graph_file)
     if show_plot:
         print(f"Elapsed: {time.time() - start}")
     G = convert_edgelist_to_graph(graph_file)
@@ -196,12 +196,10 @@ def run_comparisons(graph_file: str, show_plot: bool):
         visualize_comparison(G, mocd_nc, leiden_communities, nmi_leiden, "output_leiden", title="Leiden")
 
 
-def run_mocd_subprocess(graph_file, mocd_path="./target/release/re_mocd", pesa_ii=False):
+def run_mocd_subprocess(graph_file, mocd_path="./target/release/re_mocd"):
     """Run MOCD algorithm using subprocess to call the compiled executable."""
     try:
         cmd = [mocd_path, graph_file, "-d"]
-        if pesa_ii:
-            cmd.append("--pesa-ii")
 
         process = subprocess.run(cmd,check=True)
         with open("output.json", 'r') as f:
@@ -298,7 +296,7 @@ def stochastic_benchmark(max_size: int):
         true_num_communities = len(sizes)
 
         # Get MOCD, Louvain, and Leiden partitions
-        mocd_partition = run_mocd_subprocess(save_path, pesa_ii=True)
+        mocd_partition = run_mocd_subprocess(save_path)
         mocd_nc = convert_to_node_clustering(mocd_partition, G)
         louvain_communities = algorithms.louvain(G)
         leiden_communities = algorithms.leiden(G)
@@ -401,7 +399,7 @@ if __name__ == "__main__":
 
     if sys.argv[1:][0] == "--ring":
         file = "ring.edgelist"
-        generate_ring_of_cliques("ring.edgelist", 5, 20)
+        generate_ring_of_cliques("ring.edgelist", 5, 2)
         run_comparisons(file, True)
         print("Done.")
         exit(0)

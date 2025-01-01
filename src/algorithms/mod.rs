@@ -3,12 +3,44 @@
 //! Copyright 2024 - Guilherme Santos. If a copy of the MPL was not distributed with this
 //! file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
 
-pub mod algorithm;
-pub mod pesa_ii;
+mod algorithm;
+mod pesa_ii;
 
-/// Make a smart selection of the algorithm, based on the algorithm structure,[
-/// e.g. if x nodes > max, apply parallelism, if has y edges, use pesa_ii.
-pub fn select_algorithm() -> () {
-    todo!()
+use crate::graph::{Graph, Partition};
+use crate::utils::args::AGArgs;
 
+const PARALLELISM_MIN_LEN: usize = 150;
+const PESA_II_MIN_LEN: usize = 120;
+
+/// Algorithm "smart" selection, based on the graph structure.
+pub fn select(graph: &Graph, mut args: AGArgs) -> (Partition, Vec<f64>, f64) {
+    match graph.nodes.len() > PARALLELISM_MIN_LEN {
+        true => {
+            if args.debug {
+                println!("[algorithms/mod.rs]: args.parallelism set to true");
+            }
+            args.parallelism = true;
+        }
+        false => {
+            if args.debug {
+                println!("[algorithms/mod.rs]: args.parallelism set to false");
+            }
+            args.parallelism = false
+        }
+    }
+
+    match graph.nodes.len() > PESA_II_MIN_LEN {
+        true => {
+            if args.debug {
+                println!("[algorithms/mod.rs]: running algorithm with pesa_ii");
+            }
+            return pesa_ii::run(graph, args);
+        }
+        false => {
+            if args.debug {
+                println!("[algorithms/mod.rs]: running default algorithm");
+            }
+            return algorithm::run(graph, args);
+        }
+    }
 }

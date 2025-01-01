@@ -3,9 +3,9 @@
 //! Copyright 2024 - Guilherme Santos. If a copy of the MPL was not distributed with this
 //! file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
 
-use crate::graph::{Partition, Graph};
-use std::collections::HashMap;
+use crate::graph::{Graph, Partition};
 use rustc_hash::FxBuildHasher;
+use std::collections::HashMap;
 
 pub mod metrics;
 
@@ -23,15 +23,19 @@ pub fn mutation(partition: &mut Partition, graph: &Graph, mutation_rate: f64) {
     mutation::optimized_mutate(partition, graph, mutation_rate);
 }
 
-pub fn selection(population: Vec<Partition>, fitnesses: Vec<metrics::Metrics>, pop_size: usize,
-    tournament_size: usize,) -> Vec<Partition> {
+pub fn selection(
+    population: Vec<Partition>,
+    fitnesses: Vec<metrics::Metrics>,
+    pop_size: usize,
+    tournament_size: usize,
+) -> Vec<Partition> {
     selection::optimized_selection(population, fitnesses, pop_size, tournament_size)
 }
 
 pub fn get_fitness(
     graph: &Graph,
-    partition: &Partition, 
-    degrees: &HashMap<i32, usize, FxBuildHasher>, 
+    partition: &Partition,
+    degrees: &HashMap<i32, usize, FxBuildHasher>,
     parallel: bool,
 ) -> metrics::Metrics {
     objective::calculate_objectives(graph, partition, degrees, parallel)
