@@ -104,11 +104,14 @@ pub fn run(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
         }
 
         if args.debug {
+            // cursor clear 
+            print!("\x1b[1A\x1b[2K");
             println!(
-                "Generation: {} \t | Best Fitness: {} | Population Size: {}",
+                "[algorithms/pesa_ii.rs]: gen: {} | best fitness: {:.4} | pop.len: {}",
                 generation,
                 best_fitness,
                 population.len()
+
             );
         }
     }

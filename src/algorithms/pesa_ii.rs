@@ -122,18 +122,21 @@ pub fn run(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
 
         // Early stopping condition
         if max_local.verify_exhaustion(best_fitness) && args.debug {
-            println!("[Optimization]: Converged, breaking...");
+            println!("[algorithms/pesa_ii.rs]: Converged, breaking...");
             break;
         }
 
         if args.debug {
+            // cursor clear 
             println!(
-                "Generation: {} \t | Best Fitness: {} | Archive size: {}",
+                "\x1b[1A\x1b[2K[algorithms/pesa_ii.rs]: gen: {} | bf: {:.4} | pop/arch: {}/{} |",
                 generation,
                 best_fitness,
+                population.len(),
                 archive.len()
             );
         }
+        
     }
 
     // Find best solution from archive (using modularity as primary objective)

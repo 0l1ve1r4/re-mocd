@@ -6,7 +6,7 @@
 
 use std::env;
 use std::path::Path;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 mod algorithms;
 mod graph;
 mod operators;
@@ -18,19 +18,15 @@ use utils::args::AGArgs;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: AGArgs = AGArgs::parse(&(env::args().collect()));
     let start: Instant = Instant::now();
-    let graph = Graph::from_edgelist(Path::new(&args.file_path))?;
-    let reading_time: Duration = start.elapsed();
+    let graph: Graph = Graph::from_edgelist(Path::new(&args.file_path))?;
     let final_output: bool = args.debug;
 
     let (best_partition, _, modularity) = algorithms::select(&graph, args);
 
     if final_output {
         println!(
-            "Elapsed AG/Red. {:?}/{:?} | Nodes/Edges: {:?}/{:?}",
+            "[main.rs] Algorithm Time (s) {:.2?}!",
             start.elapsed(),
-            reading_time,
-            graph.num_nodes(),
-            graph.num_edges()
         );
     }
 

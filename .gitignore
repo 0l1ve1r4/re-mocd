@@ -13,3 +13,4 @@ mocd_output.csv
 *.png
 *.edgelist
 *.csv
+temp.py

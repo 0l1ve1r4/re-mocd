@@ -10,10 +10,18 @@ use crate::graph::{Graph, Partition};
 use crate::utils::args::AGArgs;
 
 const PARALLELISM_MIN_LEN: usize = 150;
-const PESA_II_MIN_LEN: usize = 120;
+const PESA_II_MIN_LEN: usize = 0; // Default algorithm deactivated.
 
 /// Algorithm "smart" selection, based on the graph structure.
 pub fn select(graph: &Graph, mut args: AGArgs) -> (Partition, Vec<f64>, f64) {
+    if args.debug {
+        println!();
+        println!("[algorithms/mod.rs]: graph n/e: {}/{}",
+            graph.nodes.len(),
+            graph.edges.len(),
+        );        
+    }
+    
     match graph.nodes.len() > PARALLELISM_MIN_LEN {
         true => {
             if args.debug {
@@ -32,13 +40,13 @@ pub fn select(graph: &Graph, mut args: AGArgs) -> (Partition, Vec<f64>, f64) {
     match graph.nodes.len() > PESA_II_MIN_LEN {
         true => {
             if args.debug {
-                println!("[algorithms/mod.rs]: running algorithm with pesa_ii");
+                println!("[algorithms/mod.rs]: running algorithm with pesa_ii\n");
             }
             return pesa_ii::run(graph, args);
         }
         false => {
             if args.debug {
-                println!("[algorithms/mod.rs]: running default algorithm");
+                println!("[algorithms/mod.rs]: running default algorithm\n");
             }
             return algorithm::run(graph, args);
         }
