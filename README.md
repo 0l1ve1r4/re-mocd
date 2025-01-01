@@ -59,7 +59,7 @@ edgelist_file = "res/graphs/artificials/article.edgelist"
 partition = re_mocd.run(edgelist_file)
 ```
 
-You can see an [example of plotting](res/example.py), or an example of how to [make comparisons](res/example.py) with other algorithms in `res/`.
+You can see an [example of plotting](tests/python/example.py), or an example of how to [make comparisons](tests/python/main.py) with other algorithms in `tests/python`.
 
 <center>
 
