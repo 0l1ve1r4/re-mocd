@@ -11,7 +11,7 @@ use rand::Rng;
 use rustc_hash::FxBuildHasher;
 use rustc_hash::FxHashMap as HashMap;
 
-pub fn optimized_mutate(partition: &mut Partition, graph: &Graph, mutation_rate: f64) {
+pub fn optimized_mutate(partition: &mut Partition, graph: &Graph, mutation_rate: f64) -> () {
     let mut rng = rand::thread_rng();
 
     // Convert BTreeMap to a faster hash map for the duration of the mutation

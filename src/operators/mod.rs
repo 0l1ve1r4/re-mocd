@@ -3,18 +3,40 @@
 //! Copyright 2024 - Guilherme Santos. If a copy of the MPL was not distributed with this
 //! file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
 
-pub mod crossover;
+use crate::graph::{Partition, Graph};
+use std::collections::HashMap;
+use rustc_hash::FxBuildHasher;
+
 pub mod metrics;
-pub mod mutation;
-pub mod objective;
-pub mod population;
-pub mod selection;
 
-// TODO: Set these mods private and create pub funcs
+mod crossover;
+mod mutation;
+mod objective;
+mod population;
+mod selection;
 
-pub fn crossover() {}
-pub fn mutation() {}
-pub fn selection() {}
+pub fn crossover(parent1: &Partition, parent2: &Partition) -> Partition {
+    crossover::optimized_crossover(parent1, parent2)
+}
 
-pub fn get_fitness() {}
-pub fn get_population() {}
+pub fn mutation(partition: &mut Partition, graph: &Graph, mutation_rate: f64) {
+    mutation::optimized_mutate(partition, graph, mutation_rate);
+}
+
+pub fn selection(population: Vec<Partition>, fitnesses: Vec<metrics::Metrics>, pop_size: usize,
+    tournament_size: usize,) -> Vec<Partition> {
+    selection::optimized_selection(population, fitnesses, pop_size, tournament_size)
+}
+
+pub fn get_fitness(
+    graph: &Graph,
+    partition: &Partition, 
+    degrees: &HashMap<i32, usize, FxBuildHasher>, 
+    parallel: bool,
+) -> metrics::Metrics {
+    objective::calculate_objectives(graph, partition, degrees, parallel)
+}
+
+pub fn generate_population(graph: &Graph, population_size: usize) -> Vec<Partition> {
+    population::generate_optimized_population(graph, population_size)
+}

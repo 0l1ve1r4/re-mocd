@@ -11,10 +11,10 @@ use std::collections::HashMap;
 use crate::graph::{Graph, Partition};
 use crate::utils::args::AGArgs;
 
-use crate::operators::crossover::optimized_crossover;
-use crate::operators::mutation::optimized_mutate;
-use crate::operators::objective::calculate_objectives;
-use crate::operators::population::generate_optimized_population;
+use crate::operators::crossover;
+use crate::operators::mutation;
+use crate::operators::get_fitness;
+use crate::operators::generate_population;
 
 mod hypergrid;
 use hypergrid::{HyperBox, Solution};
@@ -32,7 +32,7 @@ impl Default for BestFitnessGlobal {
         BestFitnessGlobal {
             value: f64::MIN,
             count: 0,
-            exhaustion: 5,
+            exhaustion: 15,
             epsilon: 1e-6,
         }
     }
@@ -58,7 +58,7 @@ impl BestFitnessGlobal {
 pub fn run(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
     let mut rng = rand::thread_rng();
     let mut archive: Vec<Solution> = Vec::with_capacity(args.pop_size);
-    let mut population = generate_optimized_population(graph, args.pop_size);
+    let mut population = generate_population(graph, args.pop_size);
     let mut best_fitness_history: Vec<f64> = Vec::with_capacity(args.num_gens);
     let degrees: HashMap<i32, usize, FxBuildHasher> = graph.precompute_degress();
 
@@ -71,7 +71,7 @@ pub fn run(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
                 chunk
                     .iter()
                     .map(|partition| {
-                        let metrics = calculate_objectives(graph, partition, &degrees, true);
+                        let metrics = get_fitness(graph, partition, &degrees, true);
                         hypergrid::Solution {
                             partition: partition.clone(),
                             objectives: vec![metrics.modularity, metrics.inter, metrics.intra],
@@ -112,9 +112,9 @@ pub fn run(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
             let parent1: &Solution = hypergrid::select(&hyperboxes, &mut rng);
             let parent2: &Solution = hypergrid::select(&hyperboxes, &mut rng);
 
-            let mut child = optimized_crossover(&parent1.partition, &parent2.partition);
+            let mut child = crossover(&parent1.partition, &parent2.partition);
 
-            optimized_mutate(&mut child, graph, args.mut_rate);
+            mutation(&mut child, graph, args.mut_rate);
             new_population.push(child);
         }
 

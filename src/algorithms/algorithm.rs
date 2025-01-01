@@ -11,11 +11,12 @@ use rayon::prelude::*;
 use crate::graph::{Graph, Partition};
 use crate::utils::args::AGArgs;
 
-use crate::operators::crossover::optimized_crossover;
 use crate::operators::metrics::Metrics;
-use crate::operators::mutation::optimized_mutate;
-use crate::operators::objective::calculate_objectives;
-use crate::operators::population::generate_optimized_population;
+use crate::operators::crossover;
+use crate::operators::mutation;
+use crate::operators::get_fitness;
+use crate::operators::generate_population;
+use crate::operators::selection;
 
 #[derive(Debug)]
 struct BestFitnessGlobal {
@@ -55,7 +56,7 @@ impl BestFitnessGlobal {
 
 pub fn run(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
     let mut rng = rand::thread_rng();
-    let mut population = generate_optimized_population(graph, args.pop_size);
+    let mut population = generate_population(graph, args.pop_size);
     let mut best_fitness_history = Vec::with_capacity(args.num_gens);
     let degress = graph.precompute_degress();
 
@@ -66,12 +67,12 @@ pub fn run(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
         let fitnesses: Vec<Metrics> = if args.parallelism {
             population
                 .par_iter()
-                .map(|partition| calculate_objectives(graph, partition, &degress, true))
+                .map(|partition| get_fitness(graph, partition, &degress, true))
                 .collect()
         } else {
             population
                 .iter()
-                .map(|partition| calculate_objectives(graph, partition, &degress, false))
+                .map(|partition| get_fitness(graph, partition, &degress, false))
                 .collect()
         };
 
@@ -83,24 +84,16 @@ pub fn run(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
         best_fitness_history.push(best_fitness);
 
         // 1.1. Selection
-        let mut population_with_fitness: Vec<_> =
-            population.into_par_iter().zip(fitnesses).collect();
-        population_with_fitness
-            .sort_by(|(_, a), (_, b)| b.modularity.partial_cmp(&a.modularity).unwrap());
-        population = population_with_fitness
-            .into_par_iter()
-            .take(args.pop_size / 2)
-            .map(|(p, _)| p)
-            .collect();
+        population = selection(population, fitnesses, args.pop_size, 2);
 
         // 1.2. New population
         let mut new_population = Vec::with_capacity(args.pop_size);
         while new_population.len() < args.pop_size {
             let parent1 = population.choose(&mut rng).unwrap();
             let parent2 = population.choose(&mut rng).unwrap();
-            let mut child = optimized_crossover(parent1, parent2);
+            let mut child = crossover(parent1, parent2);
 
-            optimized_mutate(&mut child, graph, args.mut_rate);
+            mutation(&mut child, graph, args.mut_rate);
             new_population.push(child);
         }
         population = new_population;
@@ -124,7 +117,7 @@ pub fn run(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
     let best_partition = population
         .into_par_iter()
         .max_by_key(|partition| {
-            let metrics = calculate_objectives(graph, partition, &degress, args.parallelism);
+            let metrics = get_fitness(graph, partition, &degress, args.parallelism);
             (metrics.modularity * 1000.0) as i64
         })
         .unwrap();
@@ -153,7 +146,7 @@ mod tests {
         let partition: Partition = Partition::new();
 
         assert_eq!(
-            calculate_objectives(&graph, &partition, &graph.precompute_degress(), true),
+            get_fitness(&graph, &partition, &graph.precompute_degress(), true),
             Metrics {
                 inter: 0.0,
                 intra: 0.0,

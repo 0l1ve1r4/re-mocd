@@ -8,6 +8,7 @@ use rayon::prelude::*;
 use std::cmp::Ordering;
 
 pub const GRID_DIVISIONS: usize = 8;
+#[allow(dead_code)]
 pub const MAX_ARCHIVE_SIZE: usize = 1000;
 
 #[derive(Clone, Debug)]
@@ -24,6 +25,7 @@ pub struct HyperBox {
 }
 
 impl HyperBox {
+    #[allow(dead_code)]
     pub fn density(&self) -> f64 {
         self.solutions.len() as f64
     }
@@ -44,63 +46,8 @@ impl Solution {
     }
 }
 
-/// Truncates the archive to maintain a maximum size while preserving diversity
-/// Uses the hyperbox density to make removal decisions
-///
-/// # Arguments
-/// * `archive` - Mutable reference to the archive of solutions
-/// * `max_size` - Maximum allowed size for the archive (recommended: 100-200)
+#[allow(dead_code)]
 pub fn truncate_archive(archive: &mut Vec<Solution>, max_size: usize) {
-    if archive.len() <= max_size {
-        return;
-    }
-
-    // Create hyperboxes to analyze density
-    let hyperboxes = create(archive, GRID_DIVISIONS);
-
-    // Create a map of solutions to their hyperbox density
-    let mut solution_densities: Vec<(usize, f64)> = archive
-        .iter()
-        .enumerate()
-        .map(|(index, solution)| {
-            let density = hyperboxes
-                .iter()
-                .find(|hb| {
-                    hb.solutions
-                        .iter()
-                        .any(|s| s.objectives == solution.objectives)
-                })
-                .map_or(0.0, |hb| hb.density());
-            (index, density)
-        })
-        .collect();
-
-    // Sort solutions by density (highest density first)
-    solution_densities.sort_by(|a, b| {
-        b.1.partial_cmp(&a.1)
-            .unwrap_or(Ordering::Equal)
-            .then_with(|| a.0.cmp(&b.0)) // For stable sorting
-    });
-
-    // Create a set of indices to remove
-    let indices_to_remove: Vec<usize> = solution_densities
-        .iter()
-        .take(archive.len() - max_size)
-        .map(|(index, _)| *index)
-        .collect();
-
-    // Remove solutions from highest density regions
-    // We need to remove from highest index to lowest to maintain validity
-    let mut indices_to_remove = indices_to_remove;
-    indices_to_remove.sort_unstable_by(|a, b| b.cmp(a));
-
-    for index in indices_to_remove {
-        archive.remove(index);
-    }
-}
-
-/// Extended version with more sophisticated density calculation
-pub fn truncate_archive_extended(archive: &mut Vec<Solution>, max_size: usize) {
     if archive.len() <= max_size {
         return;
     }

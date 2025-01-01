@@ -5,3 +5,10 @@
 
 pub mod algorithm;
 pub mod pesa_ii;
+
+/// Make a smart selection of the algorithm, based on the algorithm structure,[
+/// e.g. if x nodes > max, apply parallelism, if has y edges, use pesa_ii.
+pub fn select_algorithm() -> () {
+    todo!()
+
+}
