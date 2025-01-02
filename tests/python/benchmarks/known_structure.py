@@ -1,5 +1,6 @@
 # Evaluate the re_mocd detection algorithm over multiple iterations in known structures
 
+import re_mocd
 import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,7 +9,6 @@ from sklearn.metrics import adjusted_rand_score
 import seaborn as sns
 from tqdm import tqdm
 import random
-from .utils import run_mocd_subprocess, _run_mocd
 
 def generate_community_graph(n_nodes=30, n_communities=3, p_in=0.3, p_out=0.05):
     """
@@ -153,23 +153,13 @@ def plot_evaluation_results(results):
 
 def run(subprocess: bool = False):
     results = []
-    if subprocess:
-        results = evaluate_community_detection(
-            run_mocd_subprocess,
-            n_iterations=10,
-            n_nodes=100,
-            n_communities=5,
-            p_in=0.3,
-            p_out=0.05
-        )
+    results = evaluate_community_detection(
+        re_mocd.from_nx,
+        n_iterations=10,
+        n_nodes=100,
+        n_communities=5,
+        p_in=0.3,
+        p_out=0.05
+    )
 
-    else:
-        results = evaluate_community_detection(
-            _run_mocd,
-            n_iterations=100,
-            n_nodes=100,
-            n_communities=5,
-            p_in=0.3,
-            p_out=0.05
-        )
     plot_evaluation_results(results)

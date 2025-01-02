@@ -9,30 +9,6 @@ import re_mocd
 import json
 import time
 
-def run_mocd_subprocess(G, debug: bool = True):
-    """Run re-mocd algorithm using subprocess to call the compiled executable."""
-    graph_file = "subprocess.edgelist" 
-    mocd_path="./target/release/re_mocd"
-    
-    nx.write_edgelist(G=G, path=graph_file, delimiter=",")
-    try:
-        cmd = [mocd_path, graph_file, "-d"]
-    
-        process = subprocess.run(cmd,check=True)
-        with open("output.json", 'r') as f:
-            community_dict = json.load(f)
-            return {int(node): int(community_id) for node, community_id in community_dict.items()}
-
-    except Exception as e:
-        print(f"Error running re-mocd: {str(e)}")
-        raise
-
-def _run_mocd(G, debug: bool = True):
-    """Run re-mocd algorithm from PyPI lib."""
-    graph_file = "lib.edgelist"     
-    nx.write_edgelist(G=G, path=graph_file, delimiter=",")
-    return re_mocd.run(graph_file, debug=True)
-
 def convert_to_node_clustering(partition_dict, graph):
     """Convert a dictionary partition to NodeClustering."""
     communities = defaultdict(list)
@@ -83,7 +59,7 @@ def visualize_comparison(graph: nx.Graph, partition_ga: NodeClustering, partitio
 
 def run_comparisons(G, show_plot: bool):
     start = time.time()
-    mocd_partition = run_mocd_subprocess(G)
+    mocd_partition = re_mocd.from_nx(G)
     if show_plot:
         print(f"Elapsed: {time.time() - start}")
     mocd_nc = convert_to_node_clustering(mocd_partition, G)

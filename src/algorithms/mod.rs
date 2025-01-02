@@ -6,6 +6,9 @@
 mod algorithm;
 mod pesa_ii;
 
+use std::collections::BTreeMap;
+use std::collections::HashMap;
+
 use crate::graph::{Graph, Partition};
 use crate::utils::args::AGArgs;
 
@@ -43,13 +46,42 @@ pub fn select(graph: &Graph, mut args: AGArgs) -> (Partition, Vec<f64>, f64) {
             if args.debug {
                 println!("[algorithms/mod.rs]: running algorithm with pesa_ii\n");
             }
-            return pesa_ii::run(graph, args);
+            let (best_solution, best_fitness_history, highest_modularity) =
+                pesa_ii::run(graph, args);
+            (
+                normalize_community_ids(best_solution),
+                best_fitness_history,
+                highest_modularity,
+            )
         }
         false => {
             if args.debug {
                 println!("[algorithms/mod.rs]: running default algorithm\n");
             }
-            return algorithm::run(graph, args);
+            let (best_solution, best_fitness_history, highest_modularity) =
+                algorithm::run(graph, args);
+            (
+                normalize_community_ids(best_solution),
+                best_fitness_history,
+                highest_modularity,
+            )
         }
     }
+}
+
+fn normalize_community_ids(partition: Partition) -> BTreeMap<i32, i32> {
+    let mut new_partition = Partition::new();
+    let mut id_mapping = HashMap::new();
+    let mut next_id = 0;
+
+    // Create a new mapping for community IDs
+    for (node_id, &community_id) in partition.iter() {
+        if !id_mapping.contains_key(&community_id) {
+            id_mapping.insert(community_id, next_id);
+            next_id += 1;
+        }
+        new_partition.insert(*node_id, *id_mapping.get(&community_id).unwrap());
+    }
+
+    new_partition
 }

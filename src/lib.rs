@@ -14,7 +14,7 @@ mod graph;
 pub mod operators;
 mod utils;
 
-use graph::{Graph, NodeId, Partition, CommunityId};
+use graph::{CommunityId, Graph, NodeId, Partition};
 use utils::args::AGArgs;
 
 #[pyfunction(
@@ -85,18 +85,17 @@ fn from_nx(graph: &Bound<'_, PyAny>) -> PyResult<BTreeMap<i32, i32>> {
 
 fn convert_partition(py_partition: &Bound<'_, PyDict>) -> PyResult<Partition> {
     let mut partition = BTreeMap::new();
-    
+
     for (key, value) in py_partition.iter() {
         let node: NodeId = key.extract()?;
         let community: CommunityId = value.extract()?;
-        
+
         // Insert into the BTreeMap
         partition.insert(node, community);
     }
-    
+
     Ok(partition)
 }
-
 
 #[pyfunction]
 fn get_modularity(graph: &Bound<'_, PyAny>, partition: &Bound<'_, PyDict>) -> PyResult<f64> {
@@ -128,9 +127,10 @@ fn get_modularity(graph: &Bound<'_, PyAny>, partition: &Bound<'_, PyDict>) -> Py
         graph_struct.add_edge(from, to);
     }
 
-
-    Ok(operators::get_modularity_from_partition(&convert_partition(partition).unwrap(), &graph_struct))
-    
+    Ok(operators::get_modularity_from_partition(
+        &convert_partition(partition).unwrap(),
+        &graph_struct,
+    ))
 }
 
 #[pymodule]

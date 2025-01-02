@@ -1,8 +1,9 @@
+import re_mocd
 import time
 import random
 import pandas as pd
 from networkx.generators.community import LFR_benchmark_graph 
-from .utils import run_mocd_subprocess, convert_to_node_clustering, compute_nmi
+from .utils import convert_to_node_clustering, compute_nmi
 from cdlib import algorithms
 
 def make_benchmark():
@@ -27,7 +28,7 @@ def make_benchmark():
                     seed=42)
 
                 start_time = time.time()
-                mocd_partition = run_mocd_subprocess(G)
+                mocd_partition = re_mocd.from_nx(G)
                 execution_time = time.time() - start_time
 
                 mocd_nc = convert_to_node_clustering(mocd_partition, G)
