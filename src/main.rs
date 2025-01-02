@@ -24,10 +24,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (best_partition, _, modularity) = algorithms::select(&graph, args);
 
     if final_output {
-        println!(
-            "[main.rs] Algorithm Time (s) {:.2?}!",
-            start.elapsed(),
-        );
+        println!("[main.rs] Algorithm Time (s) {:.2?}!", start.elapsed(),);
     }
 
     utils::saving::to_csv(

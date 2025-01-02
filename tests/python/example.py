@@ -25,4 +25,6 @@ def example_graph():
 
 def show_example_plot():
     G = example_graph()
-    visualize_partition(G, re_mocd.run("example.edgelist", debug=True))
+    partition = re_mocd.from_nx(G)
+    mod = re_mocd.get_modularity(G, partition)
+    visualize_partition(G, partition)

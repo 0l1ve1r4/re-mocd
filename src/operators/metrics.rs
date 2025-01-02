@@ -20,3 +20,10 @@ impl Default for Metrics {
         }
     }
 }
+
+impl Metrics {
+    #[allow(dead_code)]
+    pub fn get_modularity(&self) -> f64 {
+        self.modularity
+    }
+}

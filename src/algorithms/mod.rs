@@ -16,12 +16,13 @@ const PESA_II_MIN_LEN: usize = 0; // Default algorithm deactivated.
 pub fn select(graph: &Graph, mut args: AGArgs) -> (Partition, Vec<f64>, f64) {
     if args.debug {
         println!();
-        println!("[algorithms/mod.rs]: graph n/e: {}/{}",
+        println!(
+            "[algorithms/mod.rs]: graph n/e: {}/{}",
             graph.nodes.len(),
             graph.edges.len(),
-        );        
+        );
     }
-    
+
     match graph.nodes.len() > PARALLELISM_MIN_LEN {
         true => {
             if args.debug {

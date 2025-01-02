@@ -40,9 +40,24 @@ impl AGArgs {
         }
     }
 
+    #[allow(dead_code)]
+    pub fn lib_args() -> Self {
+        AGArgs {
+            file_path: "".to_string(),
+            num_gens: 0x3E8,
+            pop_size: 0x164,
+            mut_rate: 0.3,
+            cross_rate: 0.9,
+            parallelism: true,
+            debug: true,
+            infinity: false,
+            save_csv: false,
+        }
+    }
+
     #[allow(clippy::ptr_arg)]
     pub fn parse(args: &Vec<String>) -> AGArgs {
-        if args.len() < 2 && args[0] != "--library-usage"
+        if args.len() < 2 && args[0] != "--library"
             || args.iter().any(|a| a == "-h" || a == "--help")
         {
             eprintln!("Usage:");

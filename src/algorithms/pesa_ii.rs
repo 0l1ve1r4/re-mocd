@@ -127,7 +127,7 @@ pub fn run(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
         }
 
         if args.debug {
-            // cursor clear 
+            // cursor clear
             println!(
                 "\x1b[1A\x1b[2K[algorithms/pesa_ii.rs]: gen: {} | bf: {:.4} | pop/arch: {}/{} |",
                 generation,
@@ -136,7 +136,6 @@ pub fn run(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
                 archive.len()
             );
         }
-        
     }
 
     // Find best solution from archive (using modularity as primary objective)

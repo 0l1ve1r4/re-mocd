@@ -4,6 +4,7 @@
 //! file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
 
 use crate::graph::{Graph, Partition};
+use metrics::Metrics;
 use rustc_hash::FxBuildHasher;
 use std::collections::HashMap;
 
@@ -43,4 +44,12 @@ pub fn get_fitness(
 
 pub fn generate_population(graph: &Graph, population_size: usize) -> Vec<Partition> {
     population::generate_optimized_population(graph, population_size)
+}
+
+#[allow(dead_code)]
+pub fn get_modularity_from_partition(partition: &Partition, graph: &Graph) -> f64 {
+    let metrics: Metrics =
+        objective::calculate_objectives(&graph, &partition, &graph.precompute_degress(), false);
+
+    metrics.get_modularity()
 }
