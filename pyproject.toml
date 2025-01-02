@@ -4,9 +4,9 @@ build-backend = "maturin"
 
 [project]
 name = "re_mocd"
-version = "0.1.0"
+version = "0.1.1"
 license = {file = "LICENSE"}
-description = "Rapid multi-objective community detection with parallel computation and caching to efficiently handle large-scale graphs."
+description = "Rapid multi-objective community detection with parallel computation and caching to efficiently handle large-scale graphs. With networkx compatibilityy"
 authors = [
     { name = "Guilherme Santos", email = "gs.oliveira.dev@gmail.com" }
 ]

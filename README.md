@@ -12,24 +12,60 @@
 
 </div>
 
-> [!NOTE]
-> This project is in its early stages, and the algorithm is still being refined. Performance and results may not be optimal yet.
+Here's a more polished and engaging version of your README:
 
-## Overview
+---
 
-This project aims to develop a high-performance genetic algorithm in Rust to detect communities in a graph. The goal is to optimize the community detection process to handle large-scale graphs efficiently. This algorithm also tries to handle some problems that happens with louvain algorithm.
+> [!NOTE]  
+> **This project is in its early stages.** Performance and results may not be optimal yet.
 
-> **Why Rust?**  
->
-> Rust is one of the fastest programming languages available, offering high-performance execution and memory safety without a garbage collector. It has a rich ecosystem of libraries.
+## Overview  
 
-## Usage
+**re-mocd** is a Rust-based library designed for efficient and high-performance community detection in graphs. By leveraging the speed and memory safety of Rust, the project aims to handle large-scale graphs while addressing limitations in traditional algorithms, such as Louvain.   
 
-### Requirements
+---
 
-> [!NOTE]
-> Before running the algorithm, you'll need an edge list file formatted as follows:
+## Installation  
 
+### Via PyPI  
+
+Install the library using pip:  
+```bash
+pip install re-mocd
+```
+
+---
+
+## Usage  
+
+### From `networkx.Graph()`  
+
+Using **re-mocd** with a `networkx.Graph()` is simple. For example:  
+```python
+import networkx as nx 
+import re_mocd
+
+# Create a graph
+G = nx.Graph([
+    (0, 1), (0, 3), (0, 7), 
+    (1, 2), (1, 3), (1, 5), 
+    (2, 3), 
+    (3, 6), 
+    (4, 5), (4, 6), 
+    (5, 6), 
+    (7, 8)
+])
+
+# Detect communities
+partition = re_mocd.from_nx(G)
+
+# Check modularity
+mod = re_mocd.get_modularity(G, partition)
+```
+
+### From an Edge List File  
+
+Prepare an edge list file formatted as:  
 ```plaintext
 0,1,{'weight': 4}
 0,2,{'weight': 5}
@@ -38,55 +74,63 @@ This project aims to develop a high-performance genetic algorithm in Rust to det
 0,10,{'weight': 2}
 ```
 
-The **weight** attribute is optional. If not provided, it can be represented by an empty dictionary: `{}`. You can save a `networkx` graph like this with: `networkx.write_edgelist(G, file_path, delimiter=",", data=False)`
-
-### Installation via PyPI
-
-The library is available on PyPI. You can install it using `pip`:
-
-```bash
-pip install re-mocd
+The `weight` attribute is optional and can be omitted (`{}`). Save your `networkx` graph as an edge list:  
+```python
+nx.write_edgelist(G, file_path, delimiter=",", data=False)
 ```
 
-#### Simple Example (Python)
-
-Here's a simple example of how to use the library in Python, the function return a dict of the partition found:
-
+Run the algorithm:  
 ```python
 import re_mocd
 
-edgelist_file = "res/graphs/artificials/article.edgelist"
-partition = re_mocd.run(edgelist_file)
+edgelist_file = "my.edgelist"
+partition = re_mocd.from_edglist(edgelist_file)
 ```
 
-You can see an [example of plotting](tests/python/example.py), or an example of how to [make comparisons](tests/python/main.py) with other algorithms in `tests/python`.
+### Examples  
 
-<center>
+- [Plotting Example](tests/python/example.py)  
+- [Comparison with Other Algorithms](tests/python/main.py)  
+- [Modularity ring problem](tests/python/benchmarks/ring.py)
+- [Single file test](tests/python/benchmarks/single.py)
 
-![Example Plot](res/example.png)
+---
 
-</center>
+<center>  
+<img src="res/example.png" alt="Example Plot" width="600">  
+</center>  
 
-### Running from Scratch
+---
 
-#### Build and Run
+## Running from Scratch  
 
-1. Clone the repository and navigate to the project folder:
+### Build and Run  
+
+1. Clone the repository:  
    ```bash
    git clone https://github.com/0l1ve1r4/re_mocd
    cd re_mocd
    ```
 
-2. Compile and run the algorithm with your edge list file:
+2. Compile and execute the algorithm:  
    ```bash
    cargo run --release mygraph.edgelist
    ```
 
-#### Debug Mode
+### Debug Mode  
 
-To run the algorithm in debug mode, use the `-d` flag:
+Use the `-d` flag for additional debug output:  
 ```bash
 cargo run --release mygraph.edgelist -d
 ```
 
-This will provide additional debug output, useful for troubleshooting and monitoring the algorithm's progress.
+Debug mode helps troubleshoot and monitor the algorithm's progress effectively.  
+
+---
+
+### Contributing  
+
+Contributions are welcome! Feel free to submit issues, feature requests, or pull requests to improve the project.  
+
+**License:** GPL-3.0 or later  
+**Author:** [Guilherme Santos](https://github.com/0l1ve1r4)  
