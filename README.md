@@ -12,10 +12,6 @@
 
 </div>
 
-Here's a more polished and engaging version of your README:
-
----
-
 > [!NOTE]  
 > **This project is in its early stages.** Performance and results may not be optimal yet.
 
