@@ -41,7 +41,7 @@ impl AGArgs {
     }
 
     #[allow(dead_code)]
-    pub fn lib_args() -> Self {
+    pub fn lib_args(verbose: bool) -> Self {
         AGArgs {
             file_path: "".to_string(),
             num_gens: 0x3E8,
@@ -49,7 +49,7 @@ impl AGArgs {
             mut_rate: 0.3,
             cross_rate: 0.9,
             parallelism: true,
-            debug: true,
+            debug: verbose,
             infinity: false,
             save_csv: false,
         }

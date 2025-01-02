@@ -17,26 +17,18 @@ mod utils;
 use graph::{CommunityId, Graph, NodeId, Partition};
 use utils::args::AGArgs;
 
-#[pyfunction(
-    signature = (
-        file_path,
-        infinity = false,
-        debug = false,
-    )
-)]
-fn from_edglist(file_path: String, infinity: bool, debug: bool) -> PyResult<BTreeMap<i32, i32>> {
-    let mut args_vec: Vec<String> = vec!["--library-".to_string(), file_path];
-    if infinity {
-        args_vec.push("-i".to_string());
-    }
-
-    if debug {
-        args_vec.push("-d".to_string());
-    }
-
-    let args: AGArgs = AGArgs::parse(&args_vec);
+/// `from_edglist`
+/// Performs community detection on a graph provided as an edge list file.
+///
+/// ---
+/// ### Parameters:
+/// - `file_path` (str): The file path to the edge list. Each line in the file should represent an edge in the format: `node1,node2,{}`.
+/// 
+#[pyfunction]
+#[pyo3(signature = (file_path))]
+fn from_edglist(file_path: String) -> PyResult<BTreeMap<i32, i32>> {
+    let args: AGArgs = AGArgs::parse(&vec!["--library-".to_string(), file_path]);
     if args.debug {
-        println!("[lib.rs]: {:?}", args_vec);
         println!("[lib.rs]: {:?}", args);
     }
 
@@ -47,8 +39,17 @@ fn from_edglist(file_path: String, infinity: bool, debug: bool) -> PyResult<BTre
     Ok(best_partition)
 }
 
+/// `from_nx`
+/// Takes a `networkx.Graph` as input and performs community detection on it.
+/// 
+/// ---
+/// ### Parameters:
+/// - `graph` (networkx.Graph): The graph on which community detection will be performed.
+/// - `verbose` (bool, optional): Enables verbose output for debugging and monitoring. Defaults to `False`.
+/// 
 #[pyfunction]
-fn from_nx(graph: &Bound<'_, PyAny>) -> PyResult<BTreeMap<i32, i32>> {
+#[pyo3(signature = (graph, verbose = false))]
+fn from_nx(graph: &Bound<'_, PyAny>, verbose: bool) -> PyResult<BTreeMap<i32, i32>> {
     let mut graph_struct = Graph::new();
 
     // Convert EdgeView to list first
@@ -77,7 +78,7 @@ fn from_nx(graph: &Bound<'_, PyAny>) -> PyResult<BTreeMap<i32, i32>> {
         graph_struct.add_edge(from, to);
     }
 
-    let args: AGArgs = AGArgs::lib_args();
+    let args: AGArgs = AGArgs::lib_args(verbose);
     let (best_partition, _, _) = algorithms::select(&graph_struct, args);
 
     Ok(best_partition)
@@ -97,6 +98,14 @@ fn convert_partition(py_partition: &Bound<'_, PyDict>) -> PyResult<Partition> {
     Ok(partition)
 }
 
+/// `get_modularity`
+/// Calculates the modularity score of a given graph and its community partitioning based on (Shi, 2012) multi-objective modularity equation.
+///
+/// ---
+/// ### Parameters:
+/// - `graph` (networkx.Graph): The graph for which the modularity is to be computed.
+/// - `partition` (dict [int, int]): A dictionary mapping nodes to their respective community IDs.
+/// 
 #[pyfunction]
 fn get_modularity(graph: &Bound<'_, PyAny>, partition: &Bound<'_, PyDict>) -> PyResult<f64> {
     let mut graph_struct = Graph::new();
