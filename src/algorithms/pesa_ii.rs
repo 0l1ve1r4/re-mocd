@@ -8,7 +8,7 @@ mod evolutionary;
 mod hypergrid;
 mod model_selection;
 
-use crate::graph::{Graph, Partition};
+use crate::graph::{self, Graph, Partition};
 use crate::utils::args::AGArgs;
 use evolutionary::evolutionary_phase;
 use hypergrid::{HyperBox, Solution};
@@ -21,8 +21,11 @@ use std::collections::HashMap;
 fn generate_random_network(original: &Graph) -> Graph {
     use rand::{seq::SliceRandom, thread_rng};
 
-    let mut random_graph = Graph::default();
-    random_graph.nodes = original.nodes.clone();
+    let mut random_graph = graph::Graph {
+        nodes: original.nodes.clone(),
+        ..Default::default()
+    };
+
     let node_vec: Vec<_> = random_graph.nodes.iter().cloned().collect();
     let num_nodes = node_vec.len();
     let num_edges = original.edges.len();

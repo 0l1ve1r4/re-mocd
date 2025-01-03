@@ -7,7 +7,7 @@ use crate::graph::Partition;
 const OUTPUT_PATH: &str = "output.json";
 const OUTPUT_CSV: &str = "mocd_output.csv";
 
-pub fn to_csv(elapsed_time: f64, num_nodes: usize, num_edges: usize, modularity: f64) -> () {
+pub fn to_csv(elapsed_time: f64, num_nodes: usize, num_edges: usize, modularity: f64) {
     let mut file = OpenOptions::new()
         .append(true)
         .create(true)

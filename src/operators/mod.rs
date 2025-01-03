@@ -49,7 +49,7 @@ pub fn generate_population(graph: &Graph, population_size: usize) -> Vec<Partiti
 #[allow(dead_code)]
 pub fn get_modularity_from_partition(partition: &Partition, graph: &Graph) -> f64 {
     let metrics: Metrics =
-        objective::calculate_objectives(&graph, &partition, &graph.precompute_degress(), false);
+        objective::calculate_objectives(graph, partition, &graph.precompute_degress(), false);
 
     metrics.get_modularity()
 }

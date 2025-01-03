@@ -15,7 +15,7 @@ use crate::utils::args::AGArgs;
 const PARALLELISM_MIN_LEN: usize = 150;
 
 // Default algorithm deactivated
-const PESA_II_MIN_LEN: usize = 0; 
+const PESA_II_MIN_LEN: usize = 0;
 
 /// Algorithm "smart" selection, based on the graph structure.
 pub fn select(graph: &Graph, mut args: AGArgs) -> (Partition, Vec<f64>, f64) {
@@ -78,8 +78,8 @@ fn normalize_community_ids(partition: Partition) -> BTreeMap<i32, i32> {
 
     // Create a new mapping for community IDs
     for (node_id, &community_id) in partition.iter() {
-        if !id_mapping.contains_key(&community_id) {
-            id_mapping.insert(community_id, next_id);
+        if let std::collections::hash_map::Entry::Vacant(e) = id_mapping.entry(community_id) {
+            e.insert(next_id);
             next_id += 1;
         }
         new_partition.insert(*node_id, *id_mapping.get(&community_id).unwrap());

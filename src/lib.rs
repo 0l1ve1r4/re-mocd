@@ -23,7 +23,7 @@ use utils::args::AGArgs;
 /// ---
 /// ### Parameters:
 /// - `file_path` (str): The file path to the edge list. Each line in the file should represent an edge in the format: `node1,node2,{}`.
-/// 
+///
 #[pyfunction]
 #[pyo3(signature = (file_path))]
 fn from_edglist(file_path: String) -> PyResult<BTreeMap<i32, i32>> {
@@ -41,18 +41,22 @@ fn from_edglist(file_path: String) -> PyResult<BTreeMap<i32, i32>> {
 
 /// `from_nx`
 /// Takes a `networkx.Graph` as input and performs community detection on it.
-/// 
+///
 /// ---
 /// ### Parameters:
 /// - `graph` (networkx.Graph): The graph on which community detection will be performed.
 /// - `verbose` (bool, optional): Enables verbose output for debugging and monitoring. Defaults to `False`.
-/// 
+///
 #[pyfunction(name = "from_nx")]
 #[pyo3(signature = (graph, verbose = false))]
-fn from_nx(py: Python<'_>, graph: &Bound<'_, PyAny>, verbose: bool) -> PyResult<BTreeMap<i32, i32>> {
+fn from_nx(
+    py: Python<'_>,
+    graph: &Bound<'_, PyAny>,
+    verbose: bool,
+) -> PyResult<BTreeMap<i32, i32>> {
     // First get all the data we need while holding the GIL
     let mut edges = Vec::new();
-    
+
     // Convert EdgeView to list first
     let edges_view = graph.call_method0("edges")?;
     let edges_list = edges_view.call_method0("__iter__")?;
@@ -75,21 +79,21 @@ fn from_nx(py: Python<'_>, graph: &Bound<'_, PyAny>, verbose: bool) -> PyResult<
                 continue;
             }
         };
-        
+
         edges.push((from, to));
     }
 
     // Release the GIL
     py.allow_threads(|| {
         let mut graph_struct = Graph::new();
-        
+
         for (from, to) in edges {
             graph_struct.add_edge(from, to);
         }
 
         let args: AGArgs = AGArgs::lib_args(verbose);
         let (best_partition, _, _) = algorithms::select(&graph_struct, args);
-        
+
         Ok(best_partition)
     })
 }
@@ -115,7 +119,7 @@ fn convert_partition(py_partition: &Bound<'_, PyDict>) -> PyResult<Partition> {
 /// ### Parameters:
 /// - `graph` (networkx.Graph): The graph for which the modularity is to be computed.
 /// - `partition` (dict [int, int]): A dictionary mapping nodes to their respective community IDs.
-/// 
+///
 #[pyfunction]
 fn get_modularity(graph: &Bound<'_, PyAny>, partition: &Bound<'_, PyDict>) -> PyResult<f64> {
     let mut graph_struct = Graph::new();
