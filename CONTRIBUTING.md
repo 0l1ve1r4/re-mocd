@@ -2,7 +2,7 @@
 
 ### General Guidelines
 - **Formatting**: Use `rustfmt` to format all code. Ensure no formatting errors before committing.
-- **Linting**: Run `clippy` and address all warnings unless there's a strong justification.
+- **Linting**: Run `clippy` and address all warnings.
 - **Naming**:
   - Use `snake_case` for function and variable names.
   - Use `SCREAMING_SNAKE_CASE` for constants.
