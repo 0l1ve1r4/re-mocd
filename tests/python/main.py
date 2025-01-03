@@ -63,7 +63,7 @@ def main():
     args = parser.parse_args()
 
     if args.command == "known":
-        ks.run(args.use_subprocess)
+        ks.run_comparison()
     elif args.command == "mu":
         mu.run(args.use_subprocess)
     elif args.command == "single":

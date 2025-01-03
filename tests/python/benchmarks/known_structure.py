@@ -1,5 +1,3 @@
-# Evaluate the re_mocd detection algorithm over multiple iterations in known structures
-
 import re_mocd
 import networkx as nx
 import numpy as np
@@ -10,27 +8,13 @@ import seaborn as sns
 from tqdm import tqdm
 import random
 
+import community as community_louvain      # python-louvain
+import igraph as ig
+import leidenalg
+
 def generate_community_graph(n_nodes=30, n_communities=3, p_in=0.3, p_out=0.05):
     """
-    Generate a random graph with known community structure
-    
-    Parameters:
-    -----------
-    n_nodes : int
-        Total number of nodes
-    n_communities : int
-        Number of communities to generate
-    p_in : float
-        Probability of intra connection 
-    p_out : float
-        Probability of inter connection
-    
-    Returns:
-    --------
-    G : networkx.Graph
-        Generated graph
-    true_communities : dict
-        Dictionary mapping node IDs to their true community assignments
+    Generate a random graph with known community structure.
     """
     nodes_per_community = n_nodes // n_communities
     remainder = n_nodes % n_communities
@@ -62,13 +46,49 @@ def generate_community_graph(n_nodes=30, n_communities=3, p_in=0.3, p_out=0.05):
     
     return G, true_communities
 
-def evaluate_community_detection(your_algorithm, n_iterations=100, n_nodes=30, 
-                              n_communities=3, p_in=0.3, p_out=0.05):
+def louvain_communities(G, *args, **kwargs):
     """
-    Evaluate the community detection algorithm over multiple iterations
+    Detect communities using the Louvain algorithm. 
+    Returns a dictionary with node: community.
     """
-    rand_scores = []
-    community_count_accuracy = []
+    # community.best_partition expects a NetworkX Graph or dict
+    partition = community_louvain.best_partition(G)
+    return partition
+
+def leiden_communities(G, *args, **kwargs):
+    """
+    Detect communities using the Leiden algorithm (via igraph).
+    Returns a dictionary with node: community.
+    """
+    # Convert NetworkX graph to igraph
+    ig_graph = ig.Graph()
+    ig_graph.add_vertices(list(G.nodes()))
+    edges = list(G.edges())
+    ig_graph.add_edges(edges)
+    
+    # Run Leiden
+    partition = leidenalg.find_partition(ig_graph, leidenalg.RBConfigurationVertexPartition)
+    
+    # Build node: community mapping
+    # partition.membership aligns with vertex order in ig_graph
+    node2community = {}
+    for v_idx, comm_id in enumerate(partition.membership):
+        node = ig_graph.vs[v_idx]['name']  # original node index
+        node2community[node] = comm_id
+    return node2community
+
+def evaluate_community_detection(algorithms, n_iterations=10, n_nodes=30, 
+                                 n_communities=3, p_in=0.3, p_out=0.05):
+    """
+    Evaluate one or more community detection algorithms over multiple iterations.
+    
+    algorithms: dict 
+        A dictionary of { "name_of_algorithm": function_that_returns_communities }
+    """
+    # Results dictionary of form: 
+    # { "name_of_algorithm": { "rand_scores": [...], "community_count_accuracy": [...] }, ... }
+    all_results = {name: {'rand_scores': [], 'community_count_accuracy': []}
+                   for name in algorithms.keys()}
     
     for iteration in tqdm(range(n_iterations)):
         # Generate a test graph
@@ -78,88 +98,85 @@ def evaluate_community_detection(your_algorithm, n_iterations=100, n_nodes=30,
             p_in=p_in,
             p_out=p_out
         )
+        # Prepare ground truth arrays
+        true_labels = [true_communities[i] for i in range(len(G))]
+        true_n_communities = len(set(true_communities.values()))
         
-        # Run the algorithm
-        predicted_communities = your_algorithm(G)
-        
-        # Debug information
-        if not all(i in predicted_communities for i in range(len(G))):
-            missing_nodes = [i for i in range(len(G)) if i not in predicted_communities]
-            print(f"\nIteration {iteration}")
-            print(f"Missing nodes in predicted communities: {missiing_nodes}")            
-            raise ValueError("Predicted communities dictionary is missing some nodes!")
-        
-        # Calculate metrics
-        try:
-            true_labels = [true_communities[i] for i in range(len(G))]
+        # For each algorithm, run detection and compute metrics
+        for alg_name, alg_func in algorithms.items():
+            predicted_communities = alg_func(G)
+            
+            # Ensure all nodes have assignments
+            if not all(i in predicted_communities for i in G.nodes()):
+                raise ValueError(f"{alg_name} missing node assignments.")
+            
             pred_labels = [predicted_communities[i] for i in range(len(G))]
             
-            # Calculate adjusted Rand index
+            # Adjusted Rand Index
             ari = adjusted_rand_score(true_labels, pred_labels)
-            rand_scores.append(ari)
+            all_results[alg_name]['rand_scores'].append(ari)
             
-            # Check if number of communities is correct
-            true_n_communities = len(set(true_communities.values()))
+            # Community count accuracy (whether the number of communities matches the true count)
             pred_n_communities = len(set(predicted_communities.values()))
-            community_count_accuracy.append(true_n_communities == pred_n_communities)
-            
-        except KeyError as e:
-            print(f"\nKeyError in iteration {iteration}")
-            print(f"Missing key: {e}")
-            print(f"Graph nodes: {list(G.nodes())}")
-            print(f"Predicted communities keys: {list(predicted_communities.keys())}")
-            raise
+            count_match = (pred_n_communities == true_n_communities)
+            all_results[alg_name]['community_count_accuracy'].append(count_match)
     
-    return {
-        'rand_scores': rand_scores,
-        'community_count_accuracy': community_count_accuracy
-    }
+    return all_results
 
-def plot_evaluation_results(results):
+def plot_evaluation_results(all_results):
     """
-    Plot the evaluation results with confidence intervals
+    Plot the evaluation results with one or more algorithms side by side.
     """
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
+    # Convert results into a form suitable for plotting
+    # We'll build a list of (algorithm_name, ARI) for boxplot,
+    # and a bar chart for community_count_accuracy.
+    ari_data = []
+    accuracy_data = []
+    for alg_name, metrics in all_results.items():
+        for score in metrics['rand_scores']:
+            ari_data.append((alg_name, score))
+        
+        # Calculate mean accuracy for each algorithm
+        bool_array = np.array(metrics['community_count_accuracy'], dtype=int)
+        mean_acc = np.mean(bool_array)
+        accuracy_data.append((alg_name, mean_acc))
     
-    # Plot Adjusted Rand Index distribution
-    sns.boxplot(y=results['rand_scores'], ax=ax1)
-    ax1.set_title('Distribution of Adjusted Rand Index')
-    ax1.set_ylabel('Adjusted Rand Index')
+    # Plot ARI with Seaborn
+    plt.figure(figsize=(10, 5))
+    sns.boxplot(x=[x[0] for x in ari_data], y=[x[1] for x in ari_data])
+    plt.title("Adjusted Rand Index Comparison")
+    plt.ylabel("ARI")
+    plt.xlabel("Algorithm")
+    plt.show()
     
-    # Add 95% confidence interval for ARI
-    mean_ari = np.mean(results['rand_scores'])
-    ci = np.percentile(results['rand_scores'], [2.5, 97.5])
-    ax1.axhline(y=mean_ari, color='r', linestyle='--', label=f'Mean: {mean_ari:.3f}')
-    ax1.axhspan(ci[0], ci[1], alpha=0.2, color='r', label='95% CI')
-    ax1.legend()
-    
-    # Convert boolean array to integers for accuracy calculation
-    accuracy_values = np.array(results['community_count_accuracy']).astype(int)
-    accuracy = np.mean(accuracy_values)
-    
-    # Calculate confidence interval for accuracy using integers
-    ci_accuracy = np.percentile(accuracy_values, [2.5, 97.5])
-    
-    ax2.bar(['Accuracy'], [accuracy])
-    ax2.errorbar(['Accuracy'], [accuracy], 
-                 yerr=[[accuracy-ci_accuracy[0]], [ci_accuracy[1]-accuracy]], 
-                 fmt='none', color='black', capsize=5)
-    ax2.set_title('Community Count Accuracy')
-    ax2.set_ylabel('Accuracy')
-    ax2.set_ylim(0, 1)
-    
-    plt.tight_layout()
+    # Plot Accuracy
+    plt.figure(figsize=(6, 5))
+    alg_names = [x[0] for x in accuracy_data]
+    acc_values = [x[1] for x in accuracy_data]
+    sns.barplot(x=alg_names, y=acc_values)
+    plt.ylim(0, 1)
+    plt.title("Community Count Accuracy Comparison")
+    plt.ylabel("Accuracy")
+    plt.xlabel("Algorithm")
     plt.show()
 
-def run(subprocess: bool = False):
-    results = []
-    results = evaluate_community_detection(
-        re_mocd.from_nx,
-        n_iterations=10,
-        n_nodes=100,
+def run_comparison():
+    algorithms = {
+        "re_mocd": lambda G: re_mocd.from_nx(G, True),  
+        "louvain": louvain_communities,
+        "leiden":  leiden_communities,
+    }
+    
+    all_results = evaluate_community_detection(
+        algorithms,
+        n_iterations=10,    
+        n_nodes=100,       
         n_communities=5,
         p_in=0.3,
         p_out=0.05
     )
+    
+    plot_evaluation_results(all_results)
 
-    plot_evaluation_results(results)
+if __name__ == "__main__":
+    run_comparison()
