@@ -17,14 +17,13 @@ use std::collections::HashMap;
 use crate::graph::Graph;
 use crate::utils::args::AGArgs;
 
-pub const MAX_ARCHIVE_SIZE: usize = 1000;
+pub const MAX_ARCHIVE_SIZE: usize = 100;
 
 #[derive(Debug)]
 struct BestFitnessGlobal {
     value: f64,        // Current best global value
     count: usize,      // Count of generations with the same value
     exhaustion: usize, // Max of generations with the same value
-    epsilon: f64,
 }
 
 impl Default for BestFitnessGlobal {
@@ -32,15 +31,14 @@ impl Default for BestFitnessGlobal {
         BestFitnessGlobal {
             value: f64::MIN,
             count: 0,
-            exhaustion: 15,
-            epsilon: 1e-6,
+            exhaustion: 100,
         }
     }
 }
 
 impl BestFitnessGlobal {
-    fn verify_exhaustion(&mut self, best_local_fitness: f64) -> bool {
-        if (self.value - best_local_fitness).abs() > self.epsilon {
+    fn verify_convergence(&mut self, best_local_fitness: f64) -> bool {
+        if self.value < best_local_fitness {
             self.value = best_local_fitness;
             self.count = 0;
             return false;
@@ -122,18 +120,19 @@ pub fn evolutionary_phase(
         population = new_population;
 
         // Early stopping
-        if max_local.verify_exhaustion(best_fitness) && args.debug {
-            println!("[evolutionary_phase]: Converged, breaking...");
+        if max_local.verify_convergence(best_fitness) && args.debug {
+            println!("[evolutionary_phase]: Converged!");
             break;
         }
 
         if args.debug {
             println!(
-                "\x1b[1A\x1b[2K[evolutionary_phase]: gen: {} | bf: {:.4} | pop/arch: {}/{}",
+                "\x1b[1A\x1b[2K[evolutionary_phase]: gen: {} | bf: {:.4} | pop/arch: {}/{} | ba: {:.4} |",
                 generation,
                 best_fitness,
                 population.len(),
-                archive.len()
+                archive.len(),
+                max_local.value,
             );
         }
     }

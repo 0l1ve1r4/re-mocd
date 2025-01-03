@@ -45,8 +45,8 @@ impl AGArgs {
         AGArgs {
             file_path: "".to_string(),
             num_gens: 0x3E8,
-            pop_size: 0x164,
-            mut_rate: 0.3,
+            pop_size: 180,
+            mut_rate: 0.6,
             cross_rate: 0.9,
             parallelism: true,
             debug: verbose,

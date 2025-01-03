@@ -3,6 +3,7 @@ import benchmarks.known_structure as ks
 import benchmarks.mu as mu
 import benchmarks.single as single
 import benchmarks.ring as ring
+import benchmarks.got as got
 from example import show_example_plot
 
 def main():
@@ -60,6 +61,12 @@ def main():
         help="Demonstrate the algorithm's performance on the 'ring' structure, a challenge for modularity metrics."
     )
 
+    got_parser = subparsers.add_parser(
+        "got",
+        help="Demonstrate the algorithm's performance on the game of thrones graph."
+
+    )
+
     args = parser.parse_args()
 
     if args.command == "known":
@@ -72,6 +79,8 @@ def main():
         show_example_plot()
     elif args.command == "ring":
         ring.run()
+    elif args.command == "got":
+        got.run()
     else:
         parser.print_help()
 

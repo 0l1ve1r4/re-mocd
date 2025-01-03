@@ -83,6 +83,8 @@ fn from_nx(
         edges.push((from, to));
     }
 
+    let args: AGArgs = AGArgs::lib_args(verbose);
+
     // Release the GIL
     py.allow_threads(|| {
         let mut graph_struct = Graph::new();
@@ -90,8 +92,7 @@ fn from_nx(
         for (from, to) in edges {
             graph_struct.add_edge(from, to);
         }
-
-        let args: AGArgs = AGArgs::lib_args(verbose);
+        
         let (best_partition, _, _) = algorithms::select(&graph_struct, args);
 
         Ok(best_partition)
