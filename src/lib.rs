@@ -47,16 +47,17 @@ fn from_edglist(file_path: String) -> PyResult<BTreeMap<i32, i32>> {
 /// - `graph` (networkx.Graph): The graph on which community detection will be performed.
 /// - `verbose` (bool, optional): Enables verbose output for debugging and monitoring. Defaults to `False`.
 /// 
-#[pyfunction]
+#[pyfunction(name = "from_nx")]
 #[pyo3(signature = (graph, verbose = false))]
-fn from_nx(graph: &Bound<'_, PyAny>, verbose: bool) -> PyResult<BTreeMap<i32, i32>> {
-    let mut graph_struct = Graph::new();
-
+fn from_nx(py: Python<'_>, graph: &Bound<'_, PyAny>, verbose: bool) -> PyResult<BTreeMap<i32, i32>> {
+    // First get all the data we need while holding the GIL
+    let mut edges = Vec::new();
+    
     // Convert EdgeView to list first
     let edges_view = graph.call_method0("edges")?;
     let edges_list = edges_view.call_method0("__iter__")?;
 
-    // Iterate over the edges
+    // Collect edges while we have GIL access
     for edge_item in edges_list.try_iter()? {
         let edge = edge_item?;
         let from: NodeId = match edge.get_item(0) {
@@ -74,14 +75,23 @@ fn from_nx(graph: &Bound<'_, PyAny>, verbose: bool) -> PyResult<BTreeMap<i32, i3
                 continue;
             }
         };
-
-        graph_struct.add_edge(from, to);
+        
+        edges.push((from, to));
     }
 
-    let args: AGArgs = AGArgs::lib_args(verbose);
-    let (best_partition, _, _) = algorithms::select(&graph_struct, args);
+    // Release the GIL
+    py.allow_threads(|| {
+        let mut graph_struct = Graph::new();
+        
+        for (from, to) in edges {
+            graph_struct.add_edge(from, to);
+        }
 
-    Ok(best_partition)
+        let args: AGArgs = AGArgs::lib_args(verbose);
+        let (best_partition, _, _) = algorithms::select(&graph_struct, args);
+        
+        Ok(best_partition)
+    })
 }
 
 fn convert_partition(py_partition: &Bound<'_, PyDict>) -> PyResult<Partition> {

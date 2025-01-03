@@ -59,7 +59,7 @@ def visualize_comparison(graph: nx.Graph, partition_ga: NodeClustering, partitio
 
 def run_comparisons(G, show_plot: bool):
     start = time.time()
-    mocd_partition = re_mocd.from_nx(G)
+    mocd_partition = re_mocd.from_nx(G, True)
     if show_plot:
         print(f"Elapsed: {time.time() - start}")
     mocd_nc = convert_to_node_clustering(mocd_partition, G)

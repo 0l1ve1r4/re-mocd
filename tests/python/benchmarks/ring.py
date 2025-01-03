@@ -22,8 +22,9 @@ def generate_ring_of_cliques(file_path: str, m: int, num_cliques: int):
     last_clique = list(range((num_cliques - 1) * m, num_cliques * m))
     first_clique = list(range(m))
     G.add_edge(random.choice(last_clique), random.choice(first_clique))
+    nx.write_edgelist(G, "ring.edgelist", delimiter=',')
     return G
 
 def run():
-    run_comparisons(generate_ring_of_cliques("ring.edgelist", 10, 8), 
+    run_comparisons(generate_ring_of_cliques("ring.edgelist", 5, 20), 
                     True)
