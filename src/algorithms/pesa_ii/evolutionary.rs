@@ -1,3 +1,9 @@
+//! algorithms/pesa_ii/evolutionary.rs
+//! Implements the first phase of the algorithm (Genetic algorithm)
+//! This Source Code Form is subject to the terms of The GNU General Public License v3.0
+//! Copyright 2024 - Guilherme Santos. If a copy of the MPL was not distributed with this
+//! file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
+
 use crate::algorithms::pesa_ii::{hypergrid, HyperBox, Solution};
 use crate::operators::crossover;
 use crate::operators::generate_population;
@@ -11,8 +17,7 @@ use std::collections::HashMap;
 use crate::graph::Graph;
 use crate::utils::args::AGArgs;
 
-use super::hypergrid::truncate_archive;
-use super::hypergrid::MAX_ARCHIVE_SIZE;
+pub const MAX_ARCHIVE_SIZE: usize = 1000;
 
 #[derive(Debug)]
 struct BestFitnessGlobal {
@@ -88,8 +93,8 @@ pub fn evolutionary_phase(
             }
         }
 
-        if archive.len() > hypergrid::MAX_ARCHIVE_SIZE {
-            truncate_archive(&mut archive, MAX_ARCHIVE_SIZE);
+        if archive.len() > MAX_ARCHIVE_SIZE {
+            hypergrid::truncate_archive(&mut archive, MAX_ARCHIVE_SIZE);
         }
 
         // Create hyperboxes from archive

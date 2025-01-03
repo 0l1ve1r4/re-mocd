@@ -13,7 +13,9 @@ use crate::graph::{Graph, Partition};
 use crate::utils::args::AGArgs;
 
 const PARALLELISM_MIN_LEN: usize = 150;
-const PESA_II_MIN_LEN: usize = 0; // Default algorithm deactivated.
+
+// Default algorithm deactivated
+const PESA_II_MIN_LEN: usize = 0; 
 
 /// Algorithm "smart" selection, based on the graph structure.
 pub fn select(graph: &Graph, mut args: AGArgs) -> (Partition, Vec<f64>, f64) {

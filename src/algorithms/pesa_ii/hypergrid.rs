@@ -8,8 +8,6 @@ use rayon::prelude::*;
 use std::cmp::Ordering;
 
 pub const GRID_DIVISIONS: usize = 8;
-#[allow(dead_code)]
-pub const MAX_ARCHIVE_SIZE: usize = 1000;
 
 #[derive(Clone, Debug)]
 pub struct Solution {

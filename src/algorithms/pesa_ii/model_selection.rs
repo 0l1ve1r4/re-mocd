@@ -1,3 +1,9 @@
+//! algorithms/pesa_ii/model_selection.rs
+//! Implements the second phase of the algorithm (model selection)
+//! This Source Code Form is subject to the terms of The GNU General Public License v3.0
+//! Copyright 2024 - Guilherme Santos. If a copy of the MPL was not distributed with this
+//! file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
+
 use crate::algorithms::pesa_ii::Solution;
 
 /// Calculate Euclidean distance between two solutions.
@@ -37,7 +43,5 @@ pub fn model_selection_phase<'a>(
             best_distance = min_dist_to_random;
         }
     }
-
-    // Return the solution that maximizes the minimum distance
     best_solution.expect("Real Pareto front is empty.")
 }
