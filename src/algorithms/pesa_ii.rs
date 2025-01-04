@@ -12,54 +12,59 @@ use crate::graph::{self, Graph, Partition};
 use crate::utils::args::AGArgs;
 use evolutionary::evolutionary_phase;
 use hypergrid::{HyperBox, Solution};
-use model_selection::model_selection_phase;
+use model_selection::min_max_selection;
+use rand::seq::SliceRandom as _;
+use rand::thread_rng;
 use rustc_hash::FxBuildHasher;
 use std::collections::HashMap;
 
 /// Generates a random network of the same size as the original `Graph`,
 /// maintaining the same number of nodes and edges while randomizing connections.
-fn generate_random_network(original: &Graph) -> Graph {
-    use rand::{seq::SliceRandom, thread_rng};
+const NUM_RANDOM_NETWORKS: usize = 1;
 
-    let mut random_graph = graph::Graph {
-        nodes: original.nodes.clone(),
-        ..Default::default()
-    };
+/// Generates multiple random networks and combines their solutions
+fn generate_random_networks(original: &Graph, num_networks: usize) -> Vec<Graph> {
+    (0..num_networks)
+        .map(|_| {
+            let mut random_graph = graph::Graph {
+                nodes: original.nodes.clone(),
+                ..Default::default()
+            };
 
-    let node_vec: Vec<_> = random_graph.nodes.iter().cloned().collect();
-    let num_nodes = node_vec.len();
-    let num_edges = original.edges.len();
-    let mut rng = thread_rng();
-    let mut possible_pairs = Vec::with_capacity(num_nodes * (num_nodes - 1) / 2);
+            let node_vec: Vec<_> = random_graph.nodes.iter().cloned().collect();
+            let num_nodes = node_vec.len();
+            let num_edges = original.edges.len();
+            let mut rng = thread_rng();
+            let mut possible_pairs = Vec::with_capacity(num_nodes * (num_nodes - 1) / 2);
 
-    for i in 0..num_nodes {
-        for j in (i + 1)..num_nodes {
-            // Store pairs as (min, max) to normalize
-            possible_pairs.push((node_vec[i], node_vec[j]));
-        }
-    }
+            for i in 0..num_nodes {
+                for j in (i + 1)..num_nodes {
+                    possible_pairs.push((node_vec[i], node_vec[j]));
+                }
+            }
 
-    possible_pairs.shuffle(&mut rng);
-    let selected_edges = possible_pairs
-        .into_iter()
-        .take(num_edges)
-        .collect::<Vec<_>>();
+            possible_pairs.shuffle(&mut rng);
+            let selected_edges = possible_pairs
+                .into_iter()
+                .take(num_edges)
+                .collect::<Vec<_>>();
 
-    for (src, dst) in &selected_edges {
-        random_graph.edges.push((*src, *dst));
-    }
+            for (src, dst) in &selected_edges {
+                random_graph.edges.push((*src, *dst));
+            }
 
-    for node in &random_graph.nodes {
-        random_graph.adjacency_list.insert(*node, Vec::new());
-    }
+            for node in &random_graph.nodes {
+                random_graph.adjacency_list.insert(*node, Vec::new());
+            }
 
-    for (src, dst) in &random_graph.edges {
-        random_graph.adjacency_list.get_mut(src).unwrap().push(*dst);
+            for (src, dst) in &random_graph.edges {
+                random_graph.adjacency_list.get_mut(src).unwrap().push(*dst);
+                random_graph.adjacency_list.get_mut(dst).unwrap().push(*src);
+            }
 
-        random_graph.adjacency_list.get_mut(dst).unwrap().push(*src);
-    }
-
-    random_graph
+            random_graph
+        })
+        .collect()
 }
 
 /// Main run function that creates both the real and random fronts, then
@@ -70,12 +75,19 @@ pub fn run(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
     // Phase 1: Evolutionary algorithm returns the Pareto frontier for the real network
     let (archive, best_fitness_history) = evolutionary_phase(graph, &args, &degrees);
 
-    let random_graph = generate_random_network(graph);
-    let random_degrees = random_graph.precompute_degress();
-    let (random_archive, _) = evolutionary_phase(&random_graph, &args, &random_degrees);
+    // Generate multiple random networks and their archives
+    let random_networks = generate_random_networks(graph, NUM_RANDOM_NETWORKS);
+    let random_archives: Vec<Vec<Solution>> = random_networks
+        .iter()
+        .map(|random_graph| {
+            let random_degrees = random_graph.precompute_degress();
+            let (random_archive, _) = evolutionary_phase(random_graph, &args, &random_degrees);
+            random_archive
+        })
+        .collect();
 
-    // Phase 2: Model selection picks the min-max solution based on the real and random fronts
-    let best_solution = model_selection_phase(&archive, &random_archive);
+    // Phase 2: Model selection using all random archives
+    let best_solution = min_max_selection(&archive, &random_archives);
 
     (
         best_solution.partition.clone(),
