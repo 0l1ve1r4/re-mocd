@@ -17,42 +17,7 @@ use crate::operators::get_fitness;
 use crate::operators::metrics::Metrics;
 use crate::operators::mutation;
 use crate::operators::selection;
-
-#[derive(Debug)]
-struct BestFitnessGlobal {
-    value: f64,        // Current best global value
-    count: usize,      // Count of generations with the same value
-    exhaustion: usize, // Max of generations with the same value
-    epsilon: f64,
-}
-
-impl Default for BestFitnessGlobal {
-    fn default() -> Self {
-        BestFitnessGlobal {
-            value: f64::MIN,
-            count: 0,
-            exhaustion: 5,
-            epsilon: 1e-6,
-        }
-    }
-}
-
-impl BestFitnessGlobal {
-    fn verify_exhaustion(&mut self, best_local_fitness: f64) -> bool {
-        if (self.value - best_local_fitness).abs() > self.epsilon {
-            self.value = best_local_fitness;
-            self.count = 0;
-            return false;
-        }
-
-        self.count += 1;
-        if self.count > self.exhaustion {
-            self.count = 0;
-            return true;
-        }
-        false
-    }
-}
+use crate::operators::ConvergenceCriteria;
 
 pub fn run(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
     let mut rng = rand::thread_rng();
@@ -60,7 +25,7 @@ pub fn run(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
     let mut best_fitness_history = Vec::with_capacity(args.num_gens);
     let degress = graph.precompute_degress();
 
-    let mut max_local: BestFitnessGlobal = BestFitnessGlobal::default();
+    let mut max_local: ConvergenceCriteria = ConvergenceCriteria::default();
 
     /*  1. Evolution */
     for generation in 0..args.num_gens {
@@ -98,8 +63,8 @@ pub fn run(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
         }
         population = new_population;
 
-        if max_local.verify_exhaustion(best_fitness) && args.debug {
-            println!("[Optimization]: Converged, breaking...");
+        if max_local.has_converged(best_fitness) {
+            if args.debug { println!("[optimization]: converged."); }
             break;
         }
 
@@ -107,10 +72,11 @@ pub fn run(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
             // cursor clear
             print!("\x1b[1A\x1b[2K");
             println!(
-                "[algorithms/pesa_ii.rs]: gen: {} | best fitness: {:.4} | pop.len: {}",
+                "[algorithms/pesa_ii.rs]: gen: {} | best local: {:.4} | pop.len: {} | best global: {}",
                 generation,
                 best_fitness,
-                population.len()
+                population.len(),
+                max_local.get_best_fitness(),
             );
         }
     }

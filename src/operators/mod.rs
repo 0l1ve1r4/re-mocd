@@ -16,6 +16,53 @@ mod objective;
 mod population;
 mod selection;
 
+/// Represents the convergence criteria and state for the genetic algorithm
+#[derive(Debug)]
+pub struct ConvergenceCriteria {
+    current_best_fitness: f64,     // Current best fitness value found
+    generations_unchanged: usize,   // Number of generations without improvement
+    max_stagnant_generations: usize, // Maximum allowed generations without improvement
+    tolerance: f64,                // Numerical tolerance for fitness comparison
+}
+
+impl Default for ConvergenceCriteria {
+    fn default() -> Self {
+        ConvergenceCriteria {
+            current_best_fitness: f64::MIN,
+            generations_unchanged: 0,
+            max_stagnant_generations: 20,
+            tolerance: 1e-6,
+        }
+    }
+}
+
+impl ConvergenceCriteria {
+    /// Checks if the algorithm has converged based on the latest fitness value
+    /// Returns true if convergence criteria are met, false otherwise
+    pub fn has_converged(&mut self, new_fitness: f64) -> bool {
+        // Check if there's a significant improvement
+        let has_improved = (new_fitness - self.current_best_fitness).abs() > self.tolerance;
+
+        if has_improved {
+            // Reset counter if we found a better solution
+            self.current_best_fitness = new_fitness;
+            self.generations_unchanged = 0;
+            return false;
+        }
+
+        self.generations_unchanged += 1;        
+        if self.generations_unchanged >= self.max_stagnant_generations {
+            return true;
+        }
+
+        false
+    }
+
+    pub fn get_best_fitness(&self) -> f64 {
+        self.current_best_fitness
+    }
+}
+
 pub fn crossover(parent1: &Partition, parent2: &Partition, rate: f64) -> Partition {
     crossover::optimized_crossover(parent1, parent2, rate)
 }

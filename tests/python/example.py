@@ -26,6 +26,6 @@ def example_graph():
 def show_example_plot():
     G = nx.karate_club_graph()
     re_mocd.from_edglist
-    partition = re_mocd.from_nx(G, True)
+    partition = re_mocd.fast_nx(G)
     mod = re_mocd.get_modularity(G, partition)
     visualize_partition(G, partition)
