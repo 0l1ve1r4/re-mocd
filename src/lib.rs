@@ -5,10 +5,9 @@
 //! file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
 
 use pyo3::prelude::*;
-use pyo3::types::{PyAny, PyDict};
+use pyo3::types::{PyAny, PyDict}; 
 use std::collections::BTreeMap;
 use std::path::Path;
-use std::time::Instant;
 
 mod algorithms;
 mod graph;
@@ -16,231 +15,160 @@ pub mod operators;
 mod utils;
 
 use graph::{CommunityId, Graph, NodeId, Partition};
-use utils::args::AGArgs;
+use utils::args::AGArgs as AlgorithmConfig;
 
-/// `from_edglist`
-/// Performs community detection on a graph provided as an edge list file.
+// ================================================================================================
+// Py functions
+// ================================================================================================
+
+/// Performs community detection on a graph from an edge list file
 ///
-/// ---
-/// ### Parameters:
-/// - `file_path` (str): The file path to the edge list. Each line in the file should represent an edge in the format: `node1,node2,{}`.
+/// # Parameters
+/// - `file_path` (str): Path to the edge list file. Each line should represent 
+///   an edge in the format: `node1,node2`
 ///
-#[pyfunction]
+/// # Returns
+/// - dict[int, int]: Mapping of node IDs to their detected community IDs
+#[pyfunction(name = "from_file")]
 #[pyo3(signature = (file_path))]
-fn from_edglist(file_path: String) -> PyResult<BTreeMap<i32, i32>> {
-    let args: AGArgs = AGArgs::parse(&vec!["--library-".to_string(), file_path]);
-    if args.debug {
-        println!("[lib.rs]: {:?}", args);
+fn from_file(file_path: String) -> PyResult<BTreeMap<i32, i32>> {
+    let config = AlgorithmConfig::parse(&vec!["--library-".to_string(), file_path]);
+    if config.debug {
+        println!("[Detection]: Config: {:?}", config);
     }
 
-    let graph: Graph = Graph::from_edgelist(Path::new(&args.file_path))?;
+    let graph = Graph::from_edgelist(Path::new(&config.file_path))?;
+    let (communities, _, _) = algorithms::select(&graph, config);
 
-    let (best_partition, _, _) = algorithms::select(&graph, args);
-
-    Ok(best_partition)
+    Ok(communities)
 }
 
-/// `from_nx`
-/// Takes a `networkx.Graph` as input and performs community detection on it.
+/// Takes a NetworkX Graph as input and performs community detection
 ///
-/// ---
-/// ### Parameters:
-/// - `graph` (networkx.Graph): The graph on which community detection will be performed.
-/// - `verbose` (bool, optional): Enables verbose output for debugging and monitoring. Defaults to `False`.
+/// # Parameters
+/// - `graph` (networkx.Graph): The graph on which to perform community detection
+/// - `debug` (bool, optional): Enable debug output. Defaults to False
 ///
-#[pyfunction(name = "from_nx")]
-#[pyo3(signature = (graph, verbose = false))]
+/// # Returns
+/// - dict[int, int]: Mapping of node IDs to their detected community IDs
+#[pyfunction(name = "from_nx")] 
+#[pyo3(signature = (graph, debug = false))]
 fn from_nx(
     py: Python<'_>,
     graph: &Bound<'_, PyAny>,
-    verbose: bool,
+    debug: bool,
 ) -> PyResult<BTreeMap<i32, i32>> {
-    // First get all the data we need while holding the GIL
-    let mut edges = Vec::new();
-    let start: Instant = Instant::now();
+    let edges = get_edges(graph)?;
+    let config = AlgorithmConfig::lib_args(debug);
 
-    // Convert EdgeView to list first
-    let edges_view = graph.call_method0("edges")?;
-    let edges_list = edges_view.call_method0("__iter__")?;
-
-    // Collect edges while we have GIL access
-    for edge_item in edges_list.try_iter()? {
-        let edge = edge_item?;
-        let from: NodeId = match edge.get_item(0) {
-            Ok(item) => item.extract()?,
-            Err(e) => {
-                println!("Error getting 'from' node: {:?}", e);
-                continue;
-            }
-        };
-
-        let to: NodeId = match edge.get_item(1) {
-            Ok(item) => item.extract()?,
-            Err(e) => {
-                println!("Error getting 'to' node: {:?}", e);
-                continue;
-            }
-        };
-
-        edges.push((from, to));
+    if config.debug {
+        println!("{:?}", config);
     }
 
-    let args: AGArgs = AGArgs::lib_args(verbose);
-    if args.debug {
-        println!("{:?}", args);
-    }
-    let time_debug: bool = args.debug;
-
-    // Release the GIL
     py.allow_threads(|| {
-        let mut graph_struct = Graph::new();
+        let graph = build_graph(edges);
+        let (communities, _, _) = algorithms::select(&graph, config);
 
-        for (from, to) in edges {
-            graph_struct.add_edge(from, to);
-        }
-
-        let (best_partition, _, _) = algorithms::select(&graph_struct, args);
-
-        if time_debug {
-            println!("[lib.rs] Algorithm Time (s) {:.2?}!", start.elapsed(),);
-        }
-
-        Ok(best_partition)
+        Ok(communities)
     })
 }
 
-fn convert_partition(py_partition: &Bound<'_, PyDict>) -> PyResult<Partition> {
-    let mut partition = BTreeMap::new();
-
-    for (key, value) in py_partition.iter() {
-        let node: NodeId = key.extract()?;
-        let community: CommunityId = value.extract()?;
-
-        // Insert into the BTreeMap
-        partition.insert(node, community);
-    }
-
-    Ok(partition)
-}
-
-/// `get_modularity`
-/// Calculates the modularity score of a given graph and its community partitioning based on (Shi, 2012) multi-objective modularity equation.
+/// Calculates the modularity score for a given graph and community partition
 ///
-/// ---
-/// ### Parameters:
-/// - `graph` (networkx.Graph): The graph for which the modularity is to be computed.
-/// - `partition` (dict [int, int]): A dictionary mapping nodes to their respective community IDs.
+/// # Parameters
+/// - `graph` (networkx.Graph): The graph to analyze
+/// - `partition` (dict[int, int]): Dictionary mapping nodes to community IDs
 ///
-#[pyfunction]
-fn get_modularity(graph: &Bound<'_, PyAny>, partition: &Bound<'_, PyDict>) -> PyResult<f64> {
-    let mut graph_struct = Graph::new();
-
-    // Convert EdgeView to list first
-    let edges_view = graph.call_method0("edges")?;
-    let edges_list = edges_view.call_method0("__iter__")?;
-
-    // Iterate over the edges
-    for edge_item in edges_list.try_iter()? {
-        let edge = edge_item?;
-        let from: NodeId = match edge.get_item(0) {
-            Ok(item) => item.extract()?,
-            Err(e) => {
-                println!("Error getting 'from' node: {:?}", e);
-                continue;
-            }
-        };
-
-        let to: NodeId = match edge.get_item(1) {
-            Ok(item) => item.extract()?,
-            Err(e) => {
-                println!("Error getting 'to' node: {:?}", e);
-                continue;
-            }
-        };
-
-        graph_struct.add_edge(from, to);
-    }
-
+/// # Returns
+/// - float: Modularity score based on (Shi, 2012) multi-objective modularity equation
+#[pyfunction(name = "modularity")]
+fn modularity(
+    graph: &Bound<'_, PyAny>, 
+    partition: &Bound<'_, PyDict>
+) -> PyResult<f64> {
+    let edges = get_edges(graph)?;
+    let graph = build_graph(edges);
+    
     Ok(operators::get_modularity_from_partition(
-        &convert_partition(partition).unwrap(),
-        &graph_struct,
+        &to_partition(partition)?,
+        &graph
     ))
 }
 
-/// `fast_nx`
-/// Do not uses PESA-II selection, and is way faster.
+/// Fast community detection without using PESA-II selection
 ///
-/// ---
-/// ### Parameters:
-/// - `graph` (networkx.Graph): The graph for which the modularity is to be computed.
-/// - `partition` (dict [int, int]): A dictionary mapping nodes to their respective community IDs.
+/// # Parameters
+/// - `graph` (networkx.Graph): The graph for community detection
+/// - `debug` (bool, optional): Enable debug output. Defaults to False
 ///
-#[pyfunction(name = "fast_nx")]
-#[pyo3(signature = (graph, verbose = false))]
-fn fast_nx(
+/// # Returns
+/// - dict[int, int]: Mapping of node IDs to their detected community IDs
+#[pyfunction(name = "fast")]
+#[pyo3(signature = (graph, debug = false))]
+fn fast(
     py: Python<'_>,
     graph: &Bound<'_, PyAny>,
-    verbose: bool,
+    debug: bool,
 ) -> PyResult<BTreeMap<i32, i32>> {
-    // First get all the data we need while holding the GIL
-    let mut edges = Vec::new();
-    let start: Instant = Instant::now();
+    let edges = get_edges(graph)?;
+    let config = AlgorithmConfig::lib_args(debug);
 
-    // Convert EdgeView to list first
-    let edges_view = graph.call_method0("edges")?;
-    let edges_list = edges_view.call_method0("__iter__")?;
-
-    // Collect edges while we have GIL access
-    for edge_item in edges_list.try_iter()? {
-        let edge = edge_item?;
-        let from: NodeId = match edge.get_item(0) {
-            Ok(item) => item.extract()?,
-            Err(e) => {
-                println!("Error getting 'from' node: {:?}", e);
-                continue;
-            }
-        };
-
-        let to: NodeId = match edge.get_item(1) {
-            Ok(item) => item.extract()?,
-            Err(e) => {
-                println!("Error getting 'to' node: {:?}", e);
-                continue;
-            }
-        };
-
-        edges.push((from, to));
-    }
-
-    let args: AGArgs = AGArgs::lib_args(verbose);
-    if args.debug {
-        println!("{:?}", args);
-    }
-    let time_debug: bool = args.debug;
-
-    // Release the GIL
     py.allow_threads(|| {
-        let mut graph_struct = Graph::new();
+        let graph = build_graph(edges);
+        let (communities, _, _) = algorithms::fast_algorithm(&graph, config);
 
-        for (from, to) in edges {
-            graph_struct.add_edge(from, to);
-        }
-
-        let (best_partition, _, _) = algorithms::fast_algorithm(&graph_struct, args);
-
-        if time_debug {
-            println!("[lib.rs] Algorithm Time (s) {:.2?}!", start.elapsed(),);
-        }
-
-        Ok(best_partition)
+        Ok(communities)
     })
 }
 
+// ================================================================================================
+// Helper functions
+// ================================================================================================
+
+/// Convert Python dict to Rust partition
+fn to_partition(py_dict: &Bound<'_, PyDict>) -> PyResult<Partition> {
+    let mut part = BTreeMap::new();
+    for (node, comm) in py_dict.iter() {
+        part.insert(
+            node.extract::<NodeId>()?, 
+            comm.extract::<CommunityId>()?
+        );
+    }
+    Ok(part)
+}
+
+/// Get edges from NetworkX graph
+fn get_edges(graph: &Bound<'_, PyAny>) -> PyResult<Vec<(NodeId, NodeId)>> {
+    let mut edges = Vec::new();
+    let edges_iter = graph.call_method0("edges")?.call_method0("__iter__")?;
+
+    for edge in edges_iter.try_iter()? {
+        let edge = edge?;
+        let from = edge.get_item(0)?.extract()?;
+        let to = edge.get_item(1)?.extract()?;
+        edges.push((from, to));
+    }
+
+    Ok(edges)
+}
+
+/// Build Graph from edges
+fn build_graph(edges: Vec<(NodeId, NodeId)>) -> Graph {
+    let mut graph = Graph::new();
+    for (from, to) in edges {
+        graph.add_edge(from, to);
+    }
+    graph
+}
+// ================================================================================================
+// Module
+// ================================================================================================
+
 #[pymodule]
 fn re_mocd(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(fast_nx, m)?)?;
+    m.add_function(wrap_pyfunction!(fast, m)?)?;
     m.add_function(wrap_pyfunction!(from_nx, m)?)?;
-    m.add_function(wrap_pyfunction!(from_edglist, m)?)?;
-    m.add_function(wrap_pyfunction!(get_modularity, m)?)?;
+    m.add_function(wrap_pyfunction!(from_file, m)?)?;
+    m.add_function(wrap_pyfunction!(modularity, m)?)?;
     Ok(())
 }

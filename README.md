@@ -53,6 +53,9 @@ G = nx.Graph([
 ])
 
 # Detect communities
+partition = re_mocd.fast(G)
+
+# You can also use a PESA-II method (experimental)
 partition = re_mocd.from_nx(G)
 
 # Check modularity
@@ -80,7 +83,7 @@ Run the algorithm:
 import re_mocd
 
 edgelist_file = "my.edgelist"
-partition = re_mocd.from_edglist(edgelist_file)
+partition = re_mocd.from_file(edgelist_file)
 ```
 
 ### Examples  

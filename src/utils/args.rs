@@ -9,7 +9,7 @@ use std::fs::metadata;
 const INFINITY_POP_SIZE: usize = 0x3E8;
 const INFINITY_GENERATIONS: usize = 0x2710;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct AGArgs {
     pub file_path: String,
