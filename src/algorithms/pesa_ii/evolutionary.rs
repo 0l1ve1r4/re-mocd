@@ -13,8 +13,13 @@ use crate::operators::mutation;
 use rayon::prelude::*;
 use rustc_hash::FxBuildHasher;
 use std::collections::HashMap;
+use std::sync::Arc;
 
-use crate::graph::Graph;
+use rand::SeedableRng;
+use rand_chacha::ChaCha8Rng;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+use crate::graph::{Graph, Partition};
 use crate::utils::args::AGArgs;
 
 pub const MAX_ARCHIVE_SIZE: usize = 100;
@@ -53,12 +58,77 @@ impl BestFitnessGlobal {
     }
 }
 
+/// Thread-safe random number generator management
+struct SafeRng {
+    seed_counter: AtomicU64,
+}
+
+impl SafeRng {
+    fn new() -> Self {
+        Self {
+            seed_counter: AtomicU64::new(0),
+        }
+    }
+
+    fn get_rng(&self) -> ChaCha8Rng {
+        let seed = self.seed_counter.fetch_add(1, Ordering::SeqCst);
+        ChaCha8Rng::seed_from_u64(seed)
+    }
+}
+
+/// Parallel population generation using PESA-II selection and reproduction
+fn generate_new_population(
+    hyperboxes: &[HyperBox],
+    args: &AGArgs,
+    graph: &Graph,
+) -> Vec<Partition> {
+    // Create thread-safe RNG
+    let safe_rng = Arc::new(SafeRng::new());
+
+    // Calculate chunk size based on available threads
+    let chunk_size = (args.pop_size / rayon::current_num_threads()).max(1);
+
+    // Create chunks for parallel processing
+    let chunks: Vec<_> = (0..args.pop_size)
+        .collect::<Vec<_>>()
+        .chunks(chunk_size)
+        .map(|c| c.len())
+        .collect();
+
+    // Process chunks in parallel
+    let results: Vec<Partition> = chunks
+        .par_iter()
+        .flat_map(|&chunk_size| {
+            let mut local_children = Vec::with_capacity(chunk_size);
+            let safe_rng = Arc::clone(&safe_rng);
+
+            // Create a thread-local RNG
+            let mut local_rng = safe_rng.get_rng();
+
+            // Process each chunk
+            for _ in 0..chunk_size {
+                // Thread-safe selection of parents
+                let parent1 = hypergrid::select(hyperboxes, &mut local_rng);
+                let parent2 = hypergrid::select(hyperboxes, &mut local_rng);
+
+                // Perform crossover and mutation
+                let mut child = crossover(&parent1.partition, &parent2.partition, args.cross_rate);
+                mutation(&mut child, graph, args.mut_rate);
+                local_children.push(child);
+            }
+
+            local_children
+        })
+        .collect();
+
+    results
+}
+
 pub fn evolutionary_phase(
     graph: &Graph,
     args: &AGArgs,
     degrees: &HashMap<i32, usize, FxBuildHasher>,
 ) -> (Vec<Solution>, Vec<f64>) {
-    let mut rng = rand::thread_rng();
     let mut archive: Vec<Solution> = Vec::with_capacity(args.pop_size);
     let mut population = generate_population(graph, args.pop_size);
     let mut best_fitness_history: Vec<f64> = Vec::with_capacity(args.num_gens);
@@ -106,18 +176,8 @@ pub fn evolutionary_phase(
             .unwrap();
         best_fitness_history.push(best_fitness);
 
-        // PESA-II Selection + Reproduction
-        let mut new_population = Vec::with_capacity(args.pop_size);
-        while new_population.len() < args.pop_size {
-            let parent1 = hypergrid::select(&hyperboxes, &mut rng);
-            let parent2 = hypergrid::select(&hyperboxes, &mut rng);
-
-            let mut child = crossover(&parent1.partition, &parent2.partition);
-            mutation(&mut child, graph, args.mut_rate);
-            new_population.push(child);
-        }
-
-        population = new_population;
+        // Generate new population in parallel
+        population = generate_new_population(&hyperboxes, args, graph);
 
         // Early stopping
         if max_local.verify_convergence(best_fitness) && args.debug {
@@ -127,7 +187,7 @@ pub fn evolutionary_phase(
 
         if args.debug {
             println!(
-                "\x1b[1A\x1b[2K[evolutionary_phase]: gen: {} | bf: {:.4} | pop/arch: {}/{} | ba: {:.4} |",
+                "\x1b[1A\x1b[2K[evolutionary_phase]: gen: {} | bf: {:.4} | pop/arch: {}/{} | bA: {:.4} |",
                 generation,
                 best_fitness,
                 population.len(),

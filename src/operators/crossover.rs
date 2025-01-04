@@ -9,8 +9,21 @@ use crate::graph::{NodeId, Partition};
 use rand::Rng;
 use std::collections::BTreeMap;
 
-pub fn optimized_crossover(parent1: &Partition, parent2: &Partition) -> Partition {
+pub fn optimized_crossover(
+    parent1: &Partition,
+    parent2: &Partition,
+    crossover_rate: f64,
+) -> Partition {
     let mut rng = rand::thread_rng();
+
+    if rng.gen::<f64>() > crossover_rate {
+        // If no crossover, randomly return either parent1 or parent2
+        return if rng.gen_bool(0.5) {
+            parent1.clone()
+        } else {
+            parent2.clone()
+        };
+    }
 
     // Use Vec for faster sequential access
     let keys: Vec<NodeId> = parent1.keys().copied().collect();

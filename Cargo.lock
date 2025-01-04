@@ -341,6 +341,7 @@ dependencies = [
  "dashmap",
  "pyo3",
  "rand",
+ "rand_chacha",
  "rayon",
  "rustc-hash",
  "serde_json",

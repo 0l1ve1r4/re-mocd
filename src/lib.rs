@@ -8,6 +8,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict};
 use std::collections::BTreeMap;
 use std::path::Path;
+use std::time::Instant;
 
 mod algorithms;
 mod graph;
@@ -56,6 +57,7 @@ fn from_nx(
 ) -> PyResult<BTreeMap<i32, i32>> {
     // First get all the data we need while holding the GIL
     let mut edges = Vec::new();
+    let start: Instant = Instant::now();
 
     // Convert EdgeView to list first
     let edges_view = graph.call_method0("edges")?;
@@ -84,6 +86,10 @@ fn from_nx(
     }
 
     let args: AGArgs = AGArgs::lib_args(verbose);
+    if args.debug {
+        println!("{:?}", args);
+    }
+    let time_debug: bool = args.debug;
 
     // Release the GIL
     py.allow_threads(|| {
@@ -92,8 +98,12 @@ fn from_nx(
         for (from, to) in edges {
             graph_struct.add_edge(from, to);
         }
-        
+
         let (best_partition, _, _) = algorithms::select(&graph_struct, args);
+
+        if time_debug {
+            println!("[lib.rs] Algorithm Time (s) {:.2?}!", start.elapsed(),);
+        }
 
         Ok(best_partition)
     })

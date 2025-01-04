@@ -17,7 +17,8 @@ fn euclidean_distance(a: &[f64], b: &[f64]) -> f64 {
 
 #[allow(dead_code)]
 pub fn max_q_selection(archive: &[Solution]) -> &Solution {
-    archive.iter()
+    archive
+        .iter()
         .max_by(|a, b| {
             let q_a = 1.0 - a.objectives[2] - a.objectives[1]; // 1 - intra - inter
             let q_b = 1.0 - b.objectives[2] - b.objectives[1];
@@ -53,7 +54,8 @@ pub fn min_max_selection<'a>(
             .collect();
 
         // Get the minimum distance across all random fronts
-        let max_min_distance = min_distances.iter()
+        let max_min_distance = min_distances
+            .iter()
             .fold(f64::MAX, |acc, &val| acc.min(val));
 
         // Update best solution if this one has a larger minimum distance

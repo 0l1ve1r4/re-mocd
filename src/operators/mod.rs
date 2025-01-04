@@ -16,8 +16,8 @@ mod objective;
 mod population;
 mod selection;
 
-pub fn crossover(parent1: &Partition, parent2: &Partition) -> Partition {
-    crossover::optimized_crossover(parent1, parent2)
+pub fn crossover(parent1: &Partition, parent2: &Partition, rate: f64) -> Partition {
+    crossover::optimized_crossover(parent1, parent2, rate)
 }
 
 pub fn mutation(partition: &mut Partition, graph: &Graph, mutation_rate: f64) {

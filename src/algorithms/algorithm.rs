@@ -91,7 +91,7 @@ pub fn run(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
         while new_population.len() < args.pop_size {
             let parent1 = population.choose(&mut rng).unwrap();
             let parent2 = population.choose(&mut rng).unwrap();
-            let mut child = crossover(parent1, parent2);
+            let mut child = crossover(parent1, parent2, args.cross_rate);
 
             mutation(&mut child, graph, args.mut_rate);
             new_population.push(child);

@@ -49,50 +49,43 @@ pub fn truncate_archive(archive: &mut Vec<Solution>, max_size: usize) {
     if archive.len() <= max_size {
         return;
     }
-
-    // Primeira fase: Preservar soluções elite
     let elite_percentage = 0.2; // Preserva 20% das melhores soluções
     let elite_size = (max_size as f64 * elite_percentage) as usize;
-    
-    // Ordena por dominância e qualidade
+
     let mut elite_scores: Vec<(usize, f64)> = archive
         .iter()
         .enumerate()
         .map(|(index, solution)| {
-            // Calcula score baseado em dominância e objetivos
             let dominance_count = archive
                 .iter()
                 .filter(|other| other.dominates(solution))
                 .count();
-            
-            // Normaliza os objetivos (quanto menor, melhor)
-            let objective_score = solution.objectives
+
+            let objective_score = solution
+                .objectives
                 .iter()
                 .map(|&obj| obj.abs())
                 .sum::<f64>();
-            
+
             let score = dominance_count as f64 + objective_score;
             (index, score)
         })
         .collect();
 
-    // Ordena pelo score (menor é melhor)
     elite_scores.sort_by(|a, b| {
         a.1.partial_cmp(&b.1)
             .unwrap_or(Ordering::Equal)
             .then_with(|| a.0.cmp(&b.0))
     });
 
-    // Identifica índices das soluções elite
     let elite_indices: FxHashSet<usize> = elite_scores
         .iter()
         .take(elite_size)
         .map(|(index, _)| *index)
         .collect();
 
-    // Segunda fase: Aplicar critério de densidade para as soluções não-elite
     let hyperboxes = create(archive, GRID_DIVISIONS);
-    
+
     let mut solution_scores: Vec<(usize, f64)> = archive
         .iter()
         .enumerate()
@@ -107,27 +100,22 @@ pub fn truncate_archive(archive: &mut Vec<Solution>, max_size: usize) {
                 })
                 .unwrap();
 
-            // Calcula distância de crowding no hyperbox
             let crowding_distance = calculate_crowding_distance(solution, &hyperbox.solutions);
-            
-            // Score combinado: densidade e distância de crowding
+
             let density_score = hyperbox.density();
             let diversity_score = 1.0 / (crowding_distance + 1.0);
-            
-            // Peso maior para diversidade
+
             let score = 0.3 * density_score + 0.7 * diversity_score;
             (index, score)
         })
         .collect();
 
-    // Ordena por score (maior score = mais provável de ser removido)
     solution_scores.sort_by(|a, b| {
         b.1.partial_cmp(&a.1)
             .unwrap_or(Ordering::Equal)
             .then_with(|| a.0.cmp(&b.0))
     });
 
-    // Remove soluções excedentes, preservando a elite
     let num_to_remove = archive.len() - max_size;
     let indices_to_remove: Vec<usize> = solution_scores
         .iter()
@@ -135,16 +123,14 @@ pub fn truncate_archive(archive: &mut Vec<Solution>, max_size: usize) {
         .map(|(index, _)| *index)
         .collect();
 
-    // Remove em ordem reversa para não afetar os índices
     let mut indices_to_remove = indices_to_remove;
     indices_to_remove.sort_unstable_by(|a, b| b.cmp(a));
-    
+
     for index in indices_to_remove {
         archive.remove(index);
     }
 }
 
-/// Calcula distância de crowding melhorada
 fn calculate_crowding_distance(solution: &Solution, neighbors: &[Solution]) -> f64 {
     if neighbors.len() <= 1 {
         return f64::INFINITY;
@@ -154,7 +140,6 @@ fn calculate_crowding_distance(solution: &Solution, neighbors: &[Solution]) -> f
     let mut distances = Vec::with_capacity(num_objectives);
 
     for obj_index in 0..num_objectives {
-        // Ordena vizinhos por este objetivo
         let mut sorted_neighbors: Vec<&Solution> = neighbors.iter().collect();
         sorted_neighbors.sort_by(|a, b| {
             a.objectives[obj_index]
@@ -162,12 +147,10 @@ fn calculate_crowding_distance(solution: &Solution, neighbors: &[Solution]) -> f
                 .unwrap_or(Ordering::Equal)
         });
 
-        // Encontra vizinhos mais próximos
         if let Some(pos) = sorted_neighbors
             .iter()
             .position(|s| s.objectives == solution.objectives)
         {
-            // Calcula distância normalizada
             if pos > 0 && pos < sorted_neighbors.len() - 1 {
                 let range = sorted_neighbors
                     .iter()
@@ -175,21 +158,21 @@ fn calculate_crowding_distance(solution: &Solution, neighbors: &[Solution]) -> f
                     .fold((f64::INFINITY, f64::NEG_INFINITY), |acc, val| {
                         (acc.0.min(val), acc.1.max(val))
                     });
-                
+
                 let diff = if range.1 > range.0 {
                     (sorted_neighbors[pos + 1].objectives[obj_index]
                         - sorted_neighbors[pos - 1].objectives[obj_index])
-                        .abs() / (range.1 - range.0)
+                        .abs()
+                        / (range.1 - range.0)
                 } else {
                     0.0
                 };
-                
+
                 distances.push(diff);
             }
         }
     }
 
-    // Média das distâncias normalizadas
     if distances.is_empty() {
         f64::INFINITY
     } else {
