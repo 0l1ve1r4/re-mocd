@@ -167,8 +167,78 @@ fn get_modularity(graph: &Bound<'_, PyAny>, partition: &Bound<'_, PyDict>) -> Py
     ))
 }
 
+/// `fast_nx`
+/// Do not uses PESA-II selection, and is way faster.
+///
+/// ---
+/// ### Parameters:
+/// - `graph` (networkx.Graph): The graph for which the modularity is to be computed.
+/// - `partition` (dict [int, int]): A dictionary mapping nodes to their respective community IDs.
+///
+#[pyfunction(name = "fast_nx")]
+#[pyo3(signature = (graph, verbose = false))]
+fn fast_nx(
+    py: Python<'_>,
+    graph: &Bound<'_, PyAny>,
+    verbose: bool,
+) -> PyResult<BTreeMap<i32, i32>> {
+    // First get all the data we need while holding the GIL
+    let mut edges = Vec::new();
+    let start: Instant = Instant::now();
+
+    // Convert EdgeView to list first
+    let edges_view = graph.call_method0("edges")?;
+    let edges_list = edges_view.call_method0("__iter__")?;
+
+    // Collect edges while we have GIL access
+    for edge_item in edges_list.try_iter()? {
+        let edge = edge_item?;
+        let from: NodeId = match edge.get_item(0) {
+            Ok(item) => item.extract()?,
+            Err(e) => {
+                println!("Error getting 'from' node: {:?}", e);
+                continue;
+            }
+        };
+
+        let to: NodeId = match edge.get_item(1) {
+            Ok(item) => item.extract()?,
+            Err(e) => {
+                println!("Error getting 'to' node: {:?}", e);
+                continue;
+            }
+        };
+
+        edges.push((from, to));
+    }
+
+    let args: AGArgs = AGArgs::lib_args(verbose);
+    if args.debug {
+        println!("{:?}", args);
+    }
+    let time_debug: bool = args.debug;
+
+    // Release the GIL
+    py.allow_threads(|| {
+        let mut graph_struct = Graph::new();
+
+        for (from, to) in edges {
+            graph_struct.add_edge(from, to);
+        }
+
+        let (best_partition, _, _) = algorithms::fast_algorithm(&graph_struct, args);
+
+        if time_debug {
+            println!("[lib.rs] Algorithm Time (s) {:.2?}!", start.elapsed(),);
+        }
+
+        Ok(best_partition)
+    })
+}
+
 #[pymodule]
 fn re_mocd(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(fast_nx, m)?)?;
     m.add_function(wrap_pyfunction!(from_nx, m)?)?;
     m.add_function(wrap_pyfunction!(from_edglist, m)?)?;
     m.add_function(wrap_pyfunction!(get_modularity, m)?)?;

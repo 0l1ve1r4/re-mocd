@@ -14,8 +14,20 @@ use crate::utils::args::AGArgs;
 
 const PARALLELISM_MIN_LEN: usize = 150;
 
-// Default algorithm deactivated
+// Default algorithm only for small graphs
 const PESA_II_MIN_LEN: usize = 0;
+
+pub fn fast_algorithm(graph: &Graph, mut args: AGArgs) -> (Partition, Vec<f64>, f64) {
+    args.parallelism = true;
+
+    let (best_solution, best_fitness_history, highest_modularity) =
+    algorithm::run(graph, args);
+    (
+        normalize_community_ids(best_solution),
+        best_fitness_history,
+        highest_modularity,
+    )
+}
 
 /// Algorithm "smart" selection, based on the graph structure.
 pub fn select(graph: &Graph, mut args: AGArgs) -> (Partition, Vec<f64>, f64) {
