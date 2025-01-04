@@ -1,11 +1,13 @@
-from typing import Dict, List, Optional, Union, Tuple
+import matplotlib.pyplot as plt
 import networkx as nx
-from sklearn.metrics import normalized_mutual_info_score
 import numpy as np
-import random
-from collections import defaultdict
 import re_mocd
+import random
 import time
+
+from typing import Dict, List, Optional, Union, Tuple
+from sklearn.metrics import normalized_mutual_info_score
+from collections import defaultdict
 from scipy import stats
 
 class CommunityMetrics:
@@ -20,10 +22,9 @@ class CommunityMetrics:
         values = np.array(self.metrics[metric])
         mean = np.mean(values)
         
-        if len(values) < 2:  # Precisa de pelo menos 2 amostras
+        if len(values) < 2:
             return mean, mean, mean
             
-        # Calcula intervalo de confiança
         std_err = stats.sem(values)
         ci = stats.t.interval(confidence=0.95, 
                             df=len(values)-1,
@@ -87,7 +88,7 @@ def create_test_graphs(n_graphs: int = 10):
                 n=1000,
                 tau1=2.5,
                 tau2=1.5,
-                mu=0.2,
+                mu=0.3,
                 min_degree=20,
                 max_degree=50,
                 min_community=20,
@@ -251,7 +252,7 @@ def plot_comparison_results(results: Dict, save_path: str = 'comparison_results.
 
 if __name__ == "__main__":
     # Configurações
-    N_GRAPHS = 2
+    N_GRAPHS = 10
     
     print("Generating test graphs...")
     graphs = create_test_graphs(N_GRAPHS)

@@ -12,8 +12,10 @@ mod graph;
 mod operators;
 mod utils;
 
-use graph::Graph;
+use graph::{Graph, Partition};
 use utils::args::AGArgs;
+
+const USE_FAST_ONLY: bool = false;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: AGArgs = AGArgs::parse(&(env::args().collect()));
@@ -21,7 +23,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let graph: Graph = Graph::from_edgelist(Path::new(&args.file_path))?;
     let final_output: bool = args.debug;
 
-    let (best_partition, _, modularity) = algorithms::select(&graph, args);
+    let best_partition: Partition;
+    let modularity: f64;
+
+    if USE_FAST_ONLY {
+        (best_partition, _, modularity) = algorithms::fast_algorithm(&graph, args);
+    } else {
+        (best_partition, _, modularity) = algorithms::select(&graph, args);
+    }
 
     if final_output {
         println!("[main.rs] Algorithm Time (s) {:.2?}!", start.elapsed(),);

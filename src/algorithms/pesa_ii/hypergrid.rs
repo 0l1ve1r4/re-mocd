@@ -13,7 +13,7 @@ pub const GRID_DIVISIONS: usize = 8;
 #[derive(Clone, Debug)]
 pub struct Solution {
     pub partition: Partition,
-    pub objectives: Vec<f64>,
+    pub objectives: Vec<f64>, // [intra, inter]
 }
 
 #[derive(Clone, Debug)]
@@ -31,13 +31,15 @@ impl HyperBox {
 }
 
 impl Solution {
+    /// Determines if this solution dominates another solution
+    /// For the two objectives (inter, intra), lower values are better
     pub fn dominates(&self, other: &Solution) -> bool {
         let mut has_better = false;
         for (self_obj, other_obj) in self.objectives.iter().zip(other.objectives.iter()) {
-            if self_obj < other_obj {
+            if self_obj > other_obj {  // Note: > because we're minimizing both objectives
                 return false;
             }
-            if self_obj > other_obj {
+            if self_obj < other_obj {
                 has_better = true;
             }
         }
@@ -61,7 +63,7 @@ pub fn truncate_archive(archive: &mut Vec<Solution>, max_size: usize) {
                 .filter(|other| other.dominates(solution))
                 .count();
 
-            let objective_score = solution
+                let objective_score = solution
                 .objectives
                 .iter()
                 .map(|&obj| obj.abs())
@@ -180,6 +182,7 @@ fn calculate_crowding_distance(solution: &Solution, neighbors: &[Solution]) -> f
     }
 }
 
+/// Creates hyperboxes for the two-objective space (inter and intra)
 pub fn create(solutions: &[Solution], divisions: usize) -> Vec<HyperBox> {
     if solutions.is_empty() {
         return Vec::new();
@@ -249,7 +252,7 @@ pub fn create(solutions: &[Solution], divisions: usize) -> Vec<HyperBox> {
         .collect()
 }
 
-/// Parallel version of select_from_hypergrid
+/// Selects a solution from a hyperbox based on the two-objective space
 pub fn select<'a>(hyperboxes: &'a [HyperBox], rng: &mut impl rand::Rng) -> &'a Solution {
     // Compute total weight in parallel
     let total_weight: f64 = hyperboxes

@@ -146,7 +146,7 @@ pub fn evolutionary_phase(
                         let metrics = get_fitness(graph, partition, degrees, true);
                         Solution {
                             partition: partition.clone(),
-                            objectives: vec![metrics.modularity, metrics.inter, metrics.intra],
+                            objectives: vec![metrics.inter, metrics.intra],
                         }
                     })
                     .collect::<Vec<_>>()
@@ -170,10 +170,10 @@ pub fn evolutionary_phase(
 
         // Record the best fitness (using first objective as an example)
         let best_fitness = archive
-            .iter()
-            .map(|s| s.objectives[0])
-            .max_by(|a, b| a.partial_cmp(b).unwrap())
-            .unwrap();
+        .iter()
+        .map(|s| 1.0 - s.objectives[0] - s.objectives[1])  // Q = 1 - inter - intra
+        .max_by(|a, b| a.partial_cmp(b).unwrap())
+        .unwrap();
         best_fitness_history.push(best_fitness);
 
         // Generate new population in parallel
