@@ -4,11 +4,8 @@
 //! Copyright 2024 - Guilherme Santos. If a copy of the MPL was not distributed with this
 //! file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
 
-use crate::algorithms::pesa_ii::{hypergrid, HyperBox, Solution};
-use crate::operators::crossover;
-use crate::operators::generate_population;
-use crate::operators::get_fitness;
-use crate::operators::mutation;
+use crate::algorithms::rmocd::{hypergrid, HyperBox, Solution};
+use crate::operators::*;
 
 use rayon::prelude::*;
 use rustc_hash::FxBuildHasher;
@@ -23,40 +20,6 @@ use crate::graph::{Graph, Partition};
 use crate::utils::args::AGArgs;
 
 pub const MAX_ARCHIVE_SIZE: usize = 100;
-
-#[derive(Debug)]
-struct BestFitnessGlobal {
-    value: f64,        // Current best global value
-    count: usize,      // Count of generations with the same value
-    exhaustion: usize, // Max of generations with the same value
-}
-
-impl Default for BestFitnessGlobal {
-    fn default() -> Self {
-        BestFitnessGlobal {
-            value: f64::MIN,
-            count: 0,
-            exhaustion: 100,
-        }
-    }
-}
-
-impl BestFitnessGlobal {
-    fn verify_convergence(&mut self, best_local_fitness: f64) -> bool {
-        if self.value < best_local_fitness {
-            self.value = best_local_fitness;
-            self.count = 0;
-            return false;
-        }
-
-        self.count += 1;
-        if self.count > self.exhaustion {
-            self.count = 0;
-            return true;
-        }
-        false
-    }
-}
 
 /// Thread-safe random number generator management
 struct SafeRng {
@@ -133,9 +96,9 @@ pub fn evolutionary_phase(
     let mut population = generate_population(graph, args.pop_size);
     let mut best_fitness_history: Vec<f64> = Vec::with_capacity(args.num_gens);
 
-    let mut max_local: BestFitnessGlobal = BestFitnessGlobal::default();
+    let mut tracker = ConvergenceTracker::default();
 
-    for generation in 0..args.num_gens {
+    for _ in 0..args.num_gens {
         // Evaluate current population and update archive
         let solutions: Vec<Solution> = population
             .par_chunks(population.len() / rayon::current_num_threads())
@@ -180,19 +143,18 @@ pub fn evolutionary_phase(
         population = generate_new_population(&hyperboxes, args, graph);
 
         // Early stopping
-        if max_local.verify_convergence(best_fitness) && args.debug {
-            println!("[evolutionary_phase]: Converged!");
+        if tracker.update(best_fitness) {
+            if args.debug {
+                println!("[evolutionary]: converged!");
+            }
             break;
         }
 
         if args.debug {
             println!(
-                "\x1b[1A\x1b[2K[evolutionary_phase]: gen: {} | bf: {:.4} | pop/arch: {}/{} | bA: {:.4} |",
-                generation,
-                best_fitness,
-                population.len(),
-                archive.len(),
-                max_local.value,
+                "\x1b[1A\x1b[2K[evolutionary_phase]: Progress: {:.0?}% | bf: {:.4?} |",
+                tracker.convergence_progress(),
+                tracker.best_fitness(),
             );
         }
     }
