@@ -53,34 +53,10 @@ G = nx.Graph([
 ])
 
 # Detect communities
-partition = re_mocd.from_nx(G)
+partition = re_mocd.rmocd(G)
 
-# Check modularity
-mod = re_mocd.get_modularity(G, partition)
-```
-
-### From an Edge List File  
-
-Prepare an edge list file formatted as:  
-```plaintext
-0,1,{'weight': 4}
-0,2,{'weight': 5}
-0,3,{'weight': 3}
-...
-0,10,{'weight': 2}
-```
-
-The `weight` attribute is optional and can be omitted (`{}`). Save your `networkx` graph as an edge list:  
-```python
-nx.write_edgelist(G, file_path, delimiter=",", data=False)
-```
-
-Run the algorithm:  
-```python
-import re_mocd
-
-edgelist_file = "my.edgelist"
-partition = re_mocd.from_edglist(edgelist_file)
+# You can see its fitness function (modularity) using
+mod = re_mocd.modularity(G, partition)
 ```
 
 ### Examples  
@@ -108,7 +84,12 @@ partition = re_mocd.from_edglist(edgelist_file)
    cd re_mocd
    ```
 
-2. Compile and execute the algorithm:  
+2. Rename main (it is like this to avoid unused warnings):
+   ```bash
+   mv cli.rs main.rs
+   ```
+
+3. Compile and execute the algorithm:  
    ```bash
    cargo run --release mygraph.edgelist
    ```
@@ -119,8 +100,6 @@ Use the `-d` flag for additional debug output:
 ```bash
 cargo run --release mygraph.edgelist -d
 ```
-
-Debug mode helps troubleshoot and monitor the algorithm's progress effectively.  
 
 ---
 

@@ -108,8 +108,8 @@ fn convert_partition(py_partition: &Bound<'_, PyDict>) -> PyResult<Partition> {
 /// - `graph` (networkx.Graph): The graph for which the modularity is to be computed.
 /// - `partition` (dict [int, int]): A dictionary mapping nodes to their respective community IDs.
 ///
-#[pyfunction]
-fn get_modularity(graph: &Bound<'_, PyAny>, partition: &Bound<'_, PyDict>) -> PyResult<f64> {
+#[pyfunction(name = "modularity")]
+fn modularity(graph: &Bound<'_, PyAny>, partition: &Bound<'_, PyDict>) -> PyResult<f64> {
     let mut graph_struct = Graph::new();
 
     // Convert EdgeView to list first
@@ -147,6 +147,6 @@ fn get_modularity(graph: &Bound<'_, PyAny>, partition: &Bound<'_, PyDict>) -> Py
 #[pymodule]
 fn re_mocd(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(rmocd, m)?)?;
-    m.add_function(wrap_pyfunction!(get_modularity, m)?)?;
+    m.add_function(wrap_pyfunction!(modularity, m)?)?;
     Ok(())
 }
