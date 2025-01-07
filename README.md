@@ -12,12 +12,9 @@
 
 </div>
 
-> [!NOTE]  
-> **This project is in its early stages.** Performance and results may not be optimal yet.
+> [!IMPORTANT]  
+> **re-mocd** is an open source Rust-based library designed to provide a simple and easy-to-use multi-objective algorithm for efficient and high-performance community detection on graphs. You can use it to make tests on your own graphs, or to make comparisons, be free ☺
 
-## Overview  
-
-**re-mocd** is a Rust-based library designed for efficient and high-performance community detection in graphs. By leveraging the speed and memory safety of Rust, the project aims to handle large-scale graphs while addressing limitations in traditional algorithms, such as Louvain.   
 
 ---
 
@@ -52,10 +49,13 @@ G = nx.Graph([
     (7, 8)
 ])
 
-# Detect communities
-partition = re_mocd.rmocd(G)
+# Random networks help validate the detection of overlapping communities by serving as a baseline for comparison. These structures appear as significant deviations from the expected behavior in unorganized networks, allowing the method to highlight more complex patterns, such as overlapping communities. However, generating random networks and their Pareto fronts increases the runtime. Higher values ​​are recommended for large numbers of overlapping communities
+random_networks = 3
 
-# You can see its fitness function (modularity) using
+# The main function that will perform the search for communities in the graph. If you want a fast search, keep the number of random networks low.
+partition = re_mocd.rmocd(G, random_networks)
+
+# You can see its fitness function using the function below. (check section "Fitness Function" to see how it is calculated).
 mod = re_mocd.modularity(G, partition)
 ```
 
@@ -102,6 +102,31 @@ cargo run --release mygraph.edgelist -d
 ```
 
 ---
+
+### Fitness Function 
+<center>  
+<img src="res/fitness_function.png" alt="Example Plot" width="600">  
+</center>  
+
+1. **Intra Objective:** Maximize the density of connections within communities:
+   \[
+   \text{intra}(C) = 1 - \frac{\sum_{c \in C} |E(c)|}{m}
+   \]
+
+2. **Inter Objective:** Minimize the strength of connections between communities:
+   \[
+   \text{inter}(C) = \sum_{c \in C} \left( \frac{\sum_{v \in c} \text{deg}(v)}{2m} \right)^2
+   \]
+
+3. **Total Modularity Function:** Combines both objectives:
+   \[
+   Q(C) = 1 - \text{intra}(C) - \text{inter}(C)
+   \]
+
+### Explanation
+
+These two conflicting objectives balance the density of internal connections and the sparsity of external connections. They are optimized simultaneously to reveal meaningful community structures.
+
 
 ### Contributing  
 
