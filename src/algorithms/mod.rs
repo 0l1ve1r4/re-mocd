@@ -14,8 +14,7 @@ use crate::utils::args::AGArgs;
 pub fn rmocd(graph: &Graph, mut args: AGArgs) -> (Partition, Vec<f64>, f64) {
     args.parallelism = true;
 
-    let (best_solution, best_fitness_history, highest_modularity) =
-    rmocd::run(graph, args);
+    let (best_solution, best_fitness_history, highest_modularity) = rmocd::run(graph, args);
     (
         normalize_community_ids(best_solution),
         best_fitness_history,

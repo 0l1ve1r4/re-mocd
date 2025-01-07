@@ -17,19 +17,28 @@ mod utils;
 use graph::{CommunityId, Graph, NodeId, Partition};
 use utils::args::AGArgs;
 
+/// Generates a random network of the same size as the original `Graph`,
+/// maintaining the same number of nodes and edges while randomizing connections.
+/// "In order to avoid the random factors, multiple random networks are applied
+/// (three random Pareto fronts are generated in the following experiments).""
+const DEFAULT_NUM_NETWORKS: usize = 3;
+
 /// `from_nx`
 /// Takes a `networkx.Graph` as input and performs community detection on it.
 ///
 /// ---
 /// ### Parameters:
 /// - `graph` (networkx.Graph): The graph on which community detection will be performed.
+/// - `rand_networks` How many random networks will be used to create a pareto front and do the min-max selection,
+///  higher values recommended for fuzzy graphs, but the performance can be slower. A 0 value will run max(q) selection.
 /// - `verbose` (bool, optional): Enables verbose output for debugging and monitoring. Defaults to `False`.
 ///
 #[pyfunction(name = "rmocd")]
-#[pyo3(signature = (graph, verbose = false))]
+#[pyo3(signature = (graph, rand_networks = DEFAULT_NUM_NETWORKS, verbose = false))]
 fn rmocd(
     py: Python<'_>,
     graph: &Bound<'_, PyAny>,
+    rand_networks: usize,
     verbose: bool,
 ) -> PyResult<BTreeMap<i32, i32>> {
     // First get all the data we need while holding the GIL
@@ -62,7 +71,7 @@ fn rmocd(
         edges.push((from, to));
     }
 
-    let args: AGArgs = AGArgs::lib_args(verbose);
+    let args: AGArgs = AGArgs::lib_args(verbose, rand_networks);
     if args.debug {
         println!("{:?}", args);
     }

@@ -6,15 +6,13 @@
 
 use std::fs::metadata;
 
-const INFINITY_POP_SIZE: usize = 0x3E8;
-const INFINITY_GENERATIONS: usize = 0x2710;
-
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct AGArgs {
     pub file_path: String,
     pub num_gens: usize,
     pub pop_size: usize,
+    pub rand_networks: usize,
     pub mut_rate: f64,
     pub cross_rate: f64,
 
@@ -31,6 +29,7 @@ impl AGArgs {
             file_path: "default.edgelist".to_string(),
             num_gens: 0x1000,
             pop_size: 0x0110,
+            rand_networks: 3,
             mut_rate: 0.4,
             cross_rate: 0.6,
             parallelism: false,
@@ -41,11 +40,12 @@ impl AGArgs {
     }
 
     #[allow(dead_code)]
-    pub fn lib_args(verbose: bool) -> Self {
+    pub fn lib_args(verbose: bool, rand_networks: usize) -> Self {
         AGArgs {
             file_path: "".to_string(),
             num_gens: 0x3E8,
             pop_size: 100,
+            rand_networks,
             mut_rate: 0.4,
             cross_rate: 0.6,
             parallelism: true,
@@ -86,12 +86,9 @@ impl AGArgs {
 
         AGArgs {
             file_path: file_path.to_string(),
-            num_gens: if infinity {
-                INFINITY_GENERATIONS
-            } else {
-                0x3E8
-            },
-            pop_size: if infinity { INFINITY_POP_SIZE } else { 0x164 },
+            num_gens: 0x3E8,
+            pop_size: 0x164,
+            rand_networks: 3,
             mut_rate: 0.3,
             cross_rate: 0.9,
             parallelism,

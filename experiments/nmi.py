@@ -108,7 +108,7 @@ def run_algorithms(G, ground_truth):
     # MOCD
     
     start_time = time.time()
-    fmocd_communities = rmocd(G, True)
+    fmocd_communities = rmocd(G, 50)
     times['rmocd'] = time.time() - start_time
     results['rmocd'] = calculate_nmi(fmocd_communities, ground_truth)
     
@@ -140,8 +140,8 @@ def run_algorithms(G, ground_truth):
     return results, times
 
 # Modified experiment parameters
-mu_values = np.linspace(0.0, 1.0, 20)
-n_runs = 10
+mu_values = np.linspace(0.9, 1.0, 3)
+n_runs = 3
 algorithms = ['rmocd', 'Louvain', 'Leiden']
 colors = ['#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
 markers = ['o', 'o', 'o', 'o', 'o', 'o']

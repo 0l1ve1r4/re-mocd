@@ -22,10 +22,9 @@ mod selection;
 pub struct ConvergenceTracker {
     best_fitness: f64,                  // The highest fitness value observed so far
     stagnant_generations: usize,        // Number of consecutive generations without improvement
-    convergence_threshold: usize,       // Maximum allowed generations without improvement 
+    convergence_threshold: usize,       // Maximum allowed generations without improvement
     last_improvement_generation: usize, // Stores the generation number when the best fitness was last updated
     current_generation: usize,          // Current generation number
-
 }
 
 impl ConvergenceTracker {
@@ -89,21 +88,21 @@ mod tests {
     #[test]
     fn test_convergence_detection() {
         let mut tracker = ConvergenceTracker::new(3);
-        
+
         assert!(!tracker.update(1.0)); // First value
         assert!(!tracker.update(2.0)); // Improvement
         assert!(!tracker.update(2.0)); // No improvement, count = 1
         assert!(!tracker.update(2.0)); // No improvement, count = 2
-        assert!(tracker.update(2.0));  // No improvement, count = 3, converged
+        assert!(tracker.update(2.0)); // No improvement, count = 3, converged
     }
 
     #[test]
     fn test_progress_tracking() {
         let mut tracker = ConvergenceTracker::new(4);
-        
+
         tracker.update(1.0);
         tracker.update(1.0);
-        
+
         assert_eq!(tracker.convergence_progress(), 50.0); // 2/4 * 100
         assert_eq!(tracker.generations_since_improvement(), 2);
         assert_eq!(tracker.best_fitness(), 1.0);
@@ -112,11 +111,11 @@ mod tests {
     #[test]
     fn test_reset() {
         let mut tracker = ConvergenceTracker::new(3);
-        
+
         tracker.update(1.0);
         tracker.update(2.0);
         tracker.reset();
-        
+
         assert_eq!(tracker.best_fitness(), f64::NEG_INFINITY);
         assert_eq!(tracker.stagnant_generations, 0);
         assert_eq!(tracker.current_generation, 0);

@@ -18,11 +18,6 @@ use rand::thread_rng;
 use rustc_hash::FxBuildHasher;
 use std::collections::HashMap;
 
-/// Generates a random network of the same size as the original `Graph`,
-/// maintaining the same number of nodes and edges while randomizing connections.
-/// "In order to avoid the random factors, multiple random networks are applied 
-/// (three random Pareto fronts are generated in the following experiments).""
-const NUM_RANDOM_NETWORKS: usize = 3;
 
 /// Generates multiple random networks and combines their solutions
 fn generate_random_networks(original: &Graph, num_networks: usize) -> Vec<Graph> {
@@ -78,12 +73,12 @@ pub fn run(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
     let (archive, best_fitness_history) = evolutionary_phase(graph, &args, &degrees);
 
     // Phase 2: Selection Model, best solution based on strategy
-    let best_solution = if NUM_RANDOM_NETWORKS == 0 {
+    let best_solution = if args.rand_networks == 0 {
         // Use Max Q selection
         max_q_selection(&archive)
     } else {
         // Generate multiple random networks and their archives
-        let random_networks: Vec<Graph> = generate_random_networks(graph, NUM_RANDOM_NETWORKS);
+        let random_networks: Vec<Graph> = generate_random_networks(graph, args.rand_networks);
         let random_archives: Vec<Vec<Solution>> = random_networks
             .iter()
             .map(|random_graph| {
