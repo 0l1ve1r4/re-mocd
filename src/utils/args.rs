@@ -39,7 +39,7 @@ impl AGArgs {
         }
     }
 
-    #[allow(dead_code)]
+    #[allow(dead_code, reason = "Used by the lib only")]
     pub fn lib_args(verbose: bool, rand_networks: usize) -> Self {
         AGArgs {
             file_path: "".to_string(),
@@ -55,7 +55,7 @@ impl AGArgs {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
+    #[allow(dead_code, clippy::ptr_arg, reason = "Used by CLI only")]
     pub fn parse(args: &Vec<String>) -> AGArgs {
         if args.len() < 2 && args[0] != "--library"
             || args.iter().any(|a| a == "-h" || a == "--help")

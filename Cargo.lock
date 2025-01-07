@@ -335,7 +335,7 @@ dependencies = [
 
 [[package]]
 name = "re_mocd"
-version = "0.1.1"
+version = "0.1.5"
 dependencies = [
  "crossbeam",
  "dashmap",

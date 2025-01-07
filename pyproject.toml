@@ -4,9 +4,9 @@ build-backend = "maturin"
 
 [project]
 name = "re_mocd"
-version = "0.1.2"
+version = "0.1.5"
 license = {file = "LICENSE"}
-description = "Rapid multi-objective community detection with parallel computation and caching to efficiently handle large-scale graphs. With networkx compatibilityy"
+description = "Rapid multi-objective community detection algorithm with parallel computation and caching to efficiently handle large-scale graphs. With networkx compatibility"
 authors = [
     { name = "Guilherme Santos", email = "gs.oliveira.dev@gmail.com" }
 ]
@@ -17,8 +17,10 @@ classifiers = [
     "Natural Language :: Portuguese (Brazilian)",
     "Programming Language :: Python",
     "Programming Language :: Rust",
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
     "Topic :: Software Development :: Libraries",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",

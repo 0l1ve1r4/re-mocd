@@ -1,14 +1,12 @@
 <div align="center">
   <img src="res/logo.png" alt="logo" style="width: 40%;"> 
 
-   <strong>rapid evolutionary multi-objective community detection</strong>
+   <strong>Rapid Enhanced Multi-objective Community Detection Algorithm</strong>
 
 ![PyPI - Implementation](https://img.shields.io/pypi/implementation/re_mocd)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/re_mocd)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/re_mocd)
 [![PyPI - Stats](https://img.shields.io/badge/More%20Info-F58025?logo=PyPi)](https://pypistats.org/packages/re_mocd)
-
-<hr>
 
 </div>
 
@@ -49,13 +47,20 @@ G = nx.Graph([
     (7, 8)
 ])
 
-# Random networks help validate the detection of overlapping communities by serving as a baseline for comparison. These structures appear as significant deviations from the expected behavior in unorganized networks, allowing the method to highlight more complex patterns, such as overlapping communities. However, generating random networks and their Pareto fronts increases the runtime. Higher values ​​are recommended for large numbers of overlapping communities
+# Random networks help validate the detection of overlapping communities 
+# by serving as a baseline for comparison. These structures appear as significant 
+# deviations from the expected behavior in unorganized networks, allowing the method
+#  to highlight more complex patterns, such as overlapping communities. 
+# However, generating random networks and their Pareto fronts increases the runtime. 
+# Higher values ​​are recommended for large numbers of overlapping communities
 random_networks = 3
 
-# The main function that will perform the search for communities in the graph. If you want a fast search, keep the number of random networks low.
+# The main function that will perform the search for communities in the graph. 
+# If you want a fast search, keep the number of random networks low.
 partition = re_mocd.rmocd(G, random_networks)
 
-# You can see its fitness function using the function below. (check section "Fitness Function" to see how it is calculated).
+# You can see its fitness function using the function below. 
+# (check section "Fitness Function" to see how it is calculated).
 mod = re_mocd.modularity(G, partition)
 ```
 
