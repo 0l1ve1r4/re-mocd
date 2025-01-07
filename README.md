@@ -103,29 +103,22 @@ cargo run --release mygraph.edgelist -d
 
 ---
 
-### Fitness Function 
-<center>  
-<img src="res/fitness_function.png" alt="Example Plot" width="600">  
-</center>  
+### Fitness Function
 
 1. **Intra Objective:** Maximize the density of connections within communities:
-   \[
-   \text{intra}(C) = 1 - \frac{\sum_{c \in C} |E(c)|}{m}
-   \]
+
+   $$\text{intra}(C) = 1 - \frac{\sum_{c \in C} |E(c)|}{m}$$
 
 2. **Inter Objective:** Minimize the strength of connections between communities:
-   \[
-   \text{inter}(C) = \sum_{c \in C} \left( \frac{\sum_{v \in c} \text{deg}(v)}{2m} \right)^2
-   \]
 
-3. **Total Modularity Function:** Combines both objectives:
-   \[
-   Q(C) = 1 - \text{intra}(C) - \text{inter}(C)
-   \]
+   $$\text{inter}(C) = \sum_{c \in C} \left( \frac{\sum_{v \in c} \text{deg}(v)}{2m} \right)^2$$
 
-### Explanation
+3. **Modularity Function:** Combines both:
 
-These two conflicting objectives balance the density of internal connections and the sparsity of external connections. They are optimized simultaneously to reveal meaningful community structures.
+   $$Q(C) = 1 - \text{intra}(C) - \text{inter}(C)$$
+
+
+These two conflicting objectives balance the density of internal connections and the sparsity of external connections. They are optimized simultaneously.
 
 
 ### Contributing  
