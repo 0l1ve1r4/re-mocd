@@ -38,6 +38,14 @@ impl Graph {
         }
     }
 
+    pub fn print(&self) {
+        println!(
+            "[graph/mod.rs]: graph n/e: {}/{}",
+            self.nodes.len(),
+            self.edges.len(),
+        );
+    }
+
     pub fn add_edge(&mut self, from: NodeId, to: NodeId) {
         self.edges.push((from, to));
         self.nodes.insert(from);

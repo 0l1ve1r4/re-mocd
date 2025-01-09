@@ -15,14 +15,7 @@ const PARALLELISM_MIN_LEN: usize = 500;
 
 /// Algorithm "smart" selection, based on the graph structure.
 pub fn select(graph: &Graph, mut args: AGArgs) -> (Partition, Vec<f64>, f64) {
-    if args.debug {
-        println!();
-        println!(
-            "[algorithms/mod.rs]: graph n/e: {}/{}",
-            graph.nodes.len(),
-            graph.edges.len(),
-        );
-    }
+    if args.debug { graph.print(); }
 
     match graph.nodes.len() > PARALLELISM_MIN_LEN {
         true => {
