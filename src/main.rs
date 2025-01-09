@@ -15,8 +15,6 @@ mod utils;
 use graph::{Graph, Partition};
 use utils::args::AGArgs;
 
-const USE_FAST_ONLY: bool = false;
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: AGArgs = AGArgs::parse(&(env::args().collect()));
     let start: Instant = Instant::now();
@@ -26,11 +24,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let best_partition: Partition;
     let modularity: f64;
 
-    if USE_FAST_ONLY {
-        (best_partition, _, modularity) = algorithms::fast_algorithm(&graph, args);
-    } else {
-        (best_partition, _, modularity) = algorithms::select(&graph, args);
-    }
+    (best_partition, _, modularity) = algorithms::select(&graph, args);
 
     if final_output {
         println!("[main.rs] Algorithm Time (s) {:.2?}!", start.elapsed(),);

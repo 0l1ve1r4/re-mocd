@@ -46,7 +46,7 @@ def modularity_analysis():
     print(f"Graph Info - Nodes: {G.number_of_nodes()}, Edges: {G.number_of_edges()}\n")
 
     # Run RMOCd
-    rmocd_partition = re_mocd.fast(G, True)
+    rmocd_partition = re_mocd.from_nx(G, True)
     rmocd_modularity = calculate_modularity(G, rmocd_partition)
     rmocd_communities = get_community_count(rmocd_partition)
 

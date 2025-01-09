@@ -29,6 +29,7 @@ pub fn selection(
 }
 
 // Tournament selection
+#[allow(dead_code)]
 pub fn optimized_selection(
     population: Vec<Partition>,
     fitnesses: Vec<Metrics>,

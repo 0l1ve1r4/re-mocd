@@ -4,7 +4,7 @@
 //! Copyright 2024 - Guilherme Santos. If a copy of the MPL was not distributed with this
 //! file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
 
-use crate::algorithms::pesa_ii::{hypergrid, HyperBox, Solution};
+use crate::algorithms::rmocd::{hypergrid, HyperBox, Solution};
 use crate::operators::*;
 
 use rayon::prelude::*;
@@ -133,10 +133,10 @@ pub fn evolutionary_phase(
 
         // Record the best fitness (using first objective as an example)
         let best_fitness = archive
-        .iter()
-        .map(|s| 1.0 - s.objectives[0] - s.objectives[1])  // Q = 1 - inter - intra
-        .max_by(|a, b| a.partial_cmp(b).unwrap())
-        .unwrap();
+            .iter()
+            .map(|s| 1.0 - s.objectives[0] - s.objectives[1]) // Q = 1 - inter - intra
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
         best_fitness_history.push(best_fitness);
 
         // Generate new population in parallel
@@ -144,7 +144,9 @@ pub fn evolutionary_phase(
 
         // Early stopping
         if max_local.has_converged(best_fitness) {
-            if args.debug { println!("[evolutionary_phase]: Converged!"); }
+            if args.debug {
+                println!("[evolutionary_phase]: Converged!");
+            }
             break;
         }
 

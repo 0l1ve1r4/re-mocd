@@ -7,3 +7,4 @@ re_mocd
 igraph
 leidenalg
 PyQt5
+tabulate

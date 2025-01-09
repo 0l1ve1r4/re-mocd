@@ -148,7 +148,7 @@ def transform_partition_to_original(partition, mapping):
 def run():
     G = create_filtered_graph("tests/python/benchmarks/all.csv")
     G_numeric, mapping = transform_graph_to_numbers(G)
-    partition_numeric = re_mocd.fast_nx(G_numeric, True)
+    partition_numeric = re_mocd.from_nx(G_numeric, True)
     partition = transform_partition_to_original(partition_numeric, mapping)
     visualize_partition(G, partition)
 

@@ -20,7 +20,7 @@ use std::collections::HashMap;
 
 /// Generates a random network of the same size as the original `Graph`,
 /// maintaining the same number of nodes and edges while randomizing connections.
-const NUM_RANDOM_NETWORKS: usize = 1;
+const NUM_RANDOM_NETWORKS: usize = 3;
 
 /// Generates multiple random networks and combines their solutions
 fn generate_random_networks(original: &Graph, num_networks: usize) -> Vec<Graph> {

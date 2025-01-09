@@ -36,7 +36,8 @@ impl Solution {
     pub fn dominates(&self, other: &Solution) -> bool {
         let mut has_better = false;
         for (self_obj, other_obj) in self.objectives.iter().zip(other.objectives.iter()) {
-            if self_obj > other_obj {  // Note: > because we're minimizing both objectives
+            if self_obj > other_obj {
+                // Note: > because we're minimizing both objectives
                 return false;
             }
             if self_obj < other_obj {
@@ -63,7 +64,7 @@ pub fn truncate_archive(archive: &mut Vec<Solution>, max_size: usize) {
                 .filter(|other| other.dominates(solution))
                 .count();
 
-                let objective_score = solution
+            let objective_score = solution
                 .objectives
                 .iter()
                 .map(|&obj| obj.abs())

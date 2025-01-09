@@ -52,10 +52,7 @@ G = nx.Graph([
     (7, 8)
 ])
 
-# Detect communities
-partition = re_mocd.fast(G)
-
-# You can also use a PESA-II method (experimental)
+# detect from a networkx.Graph()
 partition = re_mocd.from_nx(G)
 
 # Check modularity
