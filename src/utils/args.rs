@@ -22,6 +22,7 @@ pub struct AGArgs {
     pub debug: bool,
     pub infinity: bool,
     pub save_csv: bool,
+    pub multi_level: bool,
 }
 
 impl AGArgs {
@@ -37,11 +38,12 @@ impl AGArgs {
             debug: false,
             infinity: false,
             save_csv: false,
+            multi_level: false,
         }
     }
 
     #[allow(dead_code)]
-    pub fn lib_args(verbose: bool) -> Self {
+    pub fn lib_args(verbose: bool, multi_level: bool) -> Self {
         AGArgs {
             file_path: "".to_string(),
             num_gens: 0x3E8,
@@ -52,6 +54,7 @@ impl AGArgs {
             debug: verbose,
             infinity: false,
             save_csv: false,
+            multi_level,
         }
     }
 
@@ -98,6 +101,7 @@ impl AGArgs {
             debug,
             infinity,
             save_csv,
+            multi_level: false,
         }
     }
 }

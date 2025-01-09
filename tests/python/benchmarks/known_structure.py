@@ -162,7 +162,7 @@ def plot_evaluation_results(all_results):
 
 def run_comparison():
     algorithms = {
-        "re_mocd": lambda G: re_mocd.from_nx(G, True),  
+        "re_mocd": lambda G: re_mocd.from_nx(G),  
         "louvain": louvain_communities,
         "leiden":  leiden_communities,
     }

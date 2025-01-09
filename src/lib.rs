@@ -47,15 +47,16 @@ fn from_file(file_path: String) -> PyResult<BTreeMap<i32, i32>> {
 ///
 /// # Parameters
 /// - `graph` (networkx.Graph): The graph on which to perform community detection
+/// - `multi-level`: If will use a multi-level algorithm (experimental)
 /// - `debug` (bool, optional): Enable debug output. Defaults to False
 ///
 /// # Returns
 /// - dict[int, int]: Mapping of node IDs to their detected community IDs
 #[pyfunction(name = "from_nx")]
-#[pyo3(signature = (graph, debug = false))]
-fn from_nx(py: Python<'_>, graph: &Bound<'_, PyAny>, debug: bool) -> PyResult<BTreeMap<i32, i32>> {
+#[pyo3(signature = (graph, multi_level = false, debug = false))]
+fn from_nx(py: Python<'_>, graph: &Bound<'_, PyAny>, multi_level: bool, debug: bool) -> PyResult<BTreeMap<i32, i32>> {
     let edges = get_edges(graph)?;
-    let config = AlgorithmConfig::lib_args(debug);
+    let config = AlgorithmConfig::lib_args(multi_level, debug);
 
     if config.debug {
         println!("{:?}", config);

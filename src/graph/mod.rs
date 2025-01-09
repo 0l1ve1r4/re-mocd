@@ -16,7 +16,7 @@ pub type NodeId = i32;
 pub type CommunityId = i32;
 pub type Partition = BTreeMap<NodeId, CommunityId>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Graph {
     pub edges: Vec<(NodeId, NodeId)>,
     pub nodes: HashSet<NodeId>,

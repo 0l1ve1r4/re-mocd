@@ -8,7 +8,7 @@ from sklearn.metrics import normalized_mutual_info_score
 from networkx.algorithms.community import modularity
 from cdlib.algorithms import leiden, louvain
 from cdlib import evaluation
-from tabulate import tabulate  # for nice table formatting
+from tabulate import tabulate 
 
 def calculate_modularity(G, partition):
     """Calculate modularity using NetworkX's built-in function"""
@@ -43,45 +43,73 @@ def calculate_nmi(partition1, partition2):
 def modularity_analysis():
     # Load your graph
     G = from_csv("tests/python/RIOTS-edgelist.csv")
+    nx.write_edgelist(G, "rmocd.edgelist", delimiter=',')
     print(f"Graph Info - Nodes: {G.number_of_nodes()}, Edges: {G.number_of_edges()}\n")
+    
+    num_runs = 1
+    max_runs = 1
+    
+    for run in range(1, num_runs + 1):
+        print(f"Run {run} of {num_runs}")
+        
+        best_rmocd_modularity = 0
+        best_leiden_modularity = 0
+        best_louvain_modularity = 0
+        best_rmocd_values = {}
+        best_leiden_values = {}
+        best_louvain_values = {}
+        
+        for i in range(max_runs):
+            # Run RMOCd
+            rmocd_partition = re_mocd.from_nx(G, multi_level=True, debug=True)
+            rmocd_modularity = calculate_modularity(G, rmocd_partition)
+            rmocd_communities = get_community_count(rmocd_partition)
 
-    # Run RMOCd
-    rmocd_partition = re_mocd.from_nx(G, True)
-    rmocd_modularity = calculate_modularity(G, rmocd_partition)
-    rmocd_communities = get_community_count(rmocd_partition)
+            if rmocd_modularity > best_rmocd_modularity:
+                best_rmocd_modularity = rmocd_modularity
+                best_rmocd_values = {
+                    "modularity": rmocd_modularity,
+                    "communities": rmocd_communities
+                }
 
-    # Run Leiden
-    leiden_result = leiden(G)
-    leiden_partition = {node: i for i, community in enumerate(leiden_result.communities) 
-                       for node in community}
-    leiden_modularity = calculate_modularity(G, leiden_partition)
-    leiden_communities = get_community_count(leiden_partition)
+            # Run Leiden
+            leiden_result = leiden(G)
+            leiden_partition = {node: i for i, community in enumerate(leiden_result.communities) 
+                                for node in community}
+            leiden_modularity = calculate_modularity(G, leiden_partition)
+            leiden_communities = get_community_count(leiden_partition)
 
-    # Run Louvain
-    louvain_result = louvain(G)
-    louvain_partition = {node: i for i, community in enumerate(louvain_result.communities) 
-                        for node in community}
-    louvain_modularity = calculate_modularity(G, louvain_partition)
-    louvain_communities = get_community_count(louvain_partition)
+            if leiden_modularity > best_leiden_modularity:
+                best_leiden_modularity = leiden_modularity
+                best_leiden_values = {
+                    "modularity": leiden_modularity,
+                    "communities": leiden_communities
+                }
 
-    # Calculate NMI between all pairs
-    nmi_rmocd_leiden = calculate_nmi(rmocd_partition, leiden_partition)
-    nmi_rmocd_louvain = calculate_nmi(rmocd_partition, louvain_partition)
-    nmi_leiden_louvain = calculate_nmi(leiden_partition, louvain_partition)
+            # Run Louvain
+            louvain_result = louvain(G)
+            louvain_partition = {node: i for i, community in enumerate(louvain_result.communities) 
+                                for node in community}
+            louvain_modularity = calculate_modularity(G, louvain_partition)
+            louvain_communities = get_community_count(louvain_partition)
 
-    # Create comparison table
-    headers = ["Algorithm", "Modularity", "Communities", "NMI (RMOCd)", "NMI (Leiden)", "NMI (Louvain)"]
-    table = [
-        ["RMOCd", f"{rmocd_modularity:.4f}", rmocd_communities, "1.000", 
-         f"{nmi_rmocd_leiden:.4f}", f"{nmi_rmocd_louvain:.4f}"],
-        ["Leiden", f"{leiden_modularity:.4f}", leiden_communities, 
-         f"{nmi_rmocd_leiden:.4f}", "1.000", f"{nmi_leiden_louvain:.4f}"],
-        ["Louvain", f"{louvain_modularity:.4f}", louvain_communities, 
-         f"{nmi_rmocd_louvain:.4f}", f"{nmi_leiden_louvain:.4f}", "1.000"]
-    ]
+            if louvain_modularity > best_louvain_modularity:
+                best_louvain_modularity = louvain_modularity
+                best_louvain_values = {
+                    "modularity": louvain_modularity,
+                    "communities": louvain_communities
+                }
+        
+        # Print the best results for this run
+        print(f"Best Modularity and Communities for Run {run}:")
+        print(f"RMOCd: Modularity = {best_rmocd_values['modularity']:.4f}, "
+              f"Communities = {best_rmocd_values['communities']}")
+        print(f"Leiden: Modularity = {best_leiden_values['modularity']:.4f}, "
+              f"Communities = {best_leiden_values['communities']}")
+        print(f"Louvain: Modularity = {best_louvain_values['modularity']:.4f}, "
+              f"Communities = {best_louvain_values['communities']}")
+        print("-" * 50)
 
-    print("\nCommunity Detection Comparison:")
-    print(tabulate(table, headers=headers, tablefmt="grid"))
 
 if __name__ == "__main__":
     modularity_analysis()
