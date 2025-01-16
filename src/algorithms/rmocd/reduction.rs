@@ -8,7 +8,6 @@ pub fn expand_partition(
 ) -> Partition {
     let mut expanded_partition = Partition::new();
     
-    // Primeiro: processa o mapeamento direto das comunidades
     for (&reduced_node, &final_community) in reduced_partition {
         if let Some(original_nodes) = community_mapping.get(&reduced_node) {
             for &original_node in original_nodes {
@@ -17,10 +16,7 @@ pub fn expand_partition(
         }
     }
     
-    // Segundo: verifica nós que podem não ter sido mapeados
     for (&community_id, original_nodes) in community_mapping {
-        // Se esta comunidade não está no reduced_partition,
-        // mantém os nós originais na mesma comunidade
         if !reduced_partition.contains_key(&community_id) {
             for &original_node in original_nodes {
                 if !expanded_partition.contains_key(&original_node) {
@@ -30,8 +26,6 @@ pub fn expand_partition(
         }
     }
     
-    // Terceiro: verifica se algum nó ficou sem mapeamento
-    // e o mapeia para sua própria comunidade
     for &original_node in community_mapping.values().flat_map(|v| v) {
         if !expanded_partition.contains_key(&original_node) {
             expanded_partition.insert(original_node, original_node);
@@ -60,7 +54,6 @@ pub fn reduce_graph(original_graph: &Graph, partition: &Partition) -> (Graph, BT
             .push(node);
     }
     
-    // Debug: verifica se todos os nós foram mapeados
     let total_mapped_nodes: usize = community_mapping.values().map(|v| v.len()).sum();
     println!(
         "[reduce_graph]: Original nodes: {}, Mapped nodes: {}", 

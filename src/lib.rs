@@ -56,7 +56,7 @@ fn from_file(file_path: String) -> PyResult<BTreeMap<i32, i32>> {
 #[pyo3(signature = (graph, multi_level = false, debug = false))]
 fn from_nx(py: Python<'_>, graph: &Bound<'_, PyAny>, multi_level: bool, debug: bool) -> PyResult<BTreeMap<i32, i32>> {
     let edges = get_edges(graph)?;
-    let config = AlgorithmConfig::lib_args(multi_level, debug);
+    let config = AlgorithmConfig::lib_args(debug, multi_level);
 
     if config.debug {
         println!("{:?}", config);
