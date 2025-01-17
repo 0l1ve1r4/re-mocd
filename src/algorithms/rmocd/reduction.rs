@@ -31,12 +31,6 @@ pub fn expand_partition(
             expanded_partition.insert(original_node, original_node);
         }
     }
-
-    // Debug: imprime informações sobre a expansão
-    println!(
-        "[expand_partition]: Expanded partition size: {} nodes",
-        expanded_partition.len()
-    );
     
     expanded_partition
 }
@@ -53,13 +47,6 @@ pub fn reduce_graph(original_graph: &Graph, partition: &Partition) -> (Graph, BT
             .or_insert_with(Vec::new)
             .push(node);
     }
-    
-    let total_mapped_nodes: usize = community_mapping.values().map(|v| v.len()).sum();
-    println!(
-        "[reduce_graph]: Original nodes: {}, Mapped nodes: {}", 
-        original_graph.nodes.len(),
-        total_mapped_nodes
-    );
     
     // Step 2: Count edges between communities
     for &(node1, node2) in &original_graph.edges {
@@ -87,12 +74,6 @@ pub fn reduce_graph(original_graph: &Graph, partition: &Partition) -> (Graph, BT
     for ((comm1, comm2), _count) in edge_counts {
         reduced_graph.add_edge(comm1, comm2);
     }
-    
-    println!(
-        "[reduce_graph]: Reduced graph has {} nodes and {} edges",
-        reduced_graph.nodes.len(),
-        reduced_graph.edges.len()
-    );
     
     (reduced_graph, community_mapping)
 }
