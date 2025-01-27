@@ -16,7 +16,7 @@ pub type NodeId = i32;
 pub type CommunityId = i32;
 pub type Partition = BTreeMap<NodeId, CommunityId>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Graph {
     pub edges: Vec<(NodeId, NodeId)>,
     pub nodes: HashSet<NodeId>,
@@ -36,6 +36,14 @@ impl Graph {
             nodes: HashSet::default(),
             adjacency_list: HashMap::default(),
         }
+    }
+
+    pub fn print(&self) {
+        println!(
+            "[graph/mod.rs]: graph n/e: {}/{}",
+            self.nodes.len(),
+            self.edges.len(),
+        );
     }
 
     pub fn add_edge(&mut self, from: NodeId, to: NodeId) {

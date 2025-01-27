@@ -5,7 +5,7 @@
 //! file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
 
 use pyo3::prelude::*;
-use pyo3::types::{PyAny, PyDict}; 
+use pyo3::types::{PyAny, PyDict};
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -24,7 +24,7 @@ use utils::args::AGArgs as AlgorithmConfig;
 /// Performs community detection on a graph from an edge list file
 ///
 /// # Parameters
-/// - `file_path` (str): Path to the edge list file. Each line should represent 
+/// - `file_path` (str): Path to the edge list file. Each line should represent
 ///   an edge in the format: `node1,node2`
 ///
 /// # Returns
@@ -47,19 +47,16 @@ fn from_file(file_path: String) -> PyResult<BTreeMap<i32, i32>> {
 ///
 /// # Parameters
 /// - `graph` (networkx.Graph): The graph on which to perform community detection
+/// - `multi-level`: If will use a multi-level algorithm (experimental)
 /// - `debug` (bool, optional): Enable debug output. Defaults to False
 ///
 /// # Returns
 /// - dict[int, int]: Mapping of node IDs to their detected community IDs
-#[pyfunction(name = "from_nx")] 
-#[pyo3(signature = (graph, debug = false))]
-fn from_nx(
-    py: Python<'_>,
-    graph: &Bound<'_, PyAny>,
-    debug: bool,
-) -> PyResult<BTreeMap<i32, i32>> {
+#[pyfunction(name = "from_nx")]
+#[pyo3(signature = (graph, multi_level = false, debug = false))]
+fn from_nx(py: Python<'_>, graph: &Bound<'_, PyAny>, multi_level: bool, debug: bool) -> PyResult<BTreeMap<i32, i32>> {
     let edges = get_edges(graph)?;
-    let config = AlgorithmConfig::lib_args(debug);
+    let config = AlgorithmConfig::lib_args(debug, multi_level);
 
     if config.debug {
         println!("{:?}", config);
@@ -82,43 +79,14 @@ fn from_nx(
 /// # Returns
 /// - float: Modularity score based on (Shi, 2012) multi-objective modularity equation
 #[pyfunction(name = "modularity")]
-fn modularity(
-    graph: &Bound<'_, PyAny>, 
-    partition: &Bound<'_, PyDict>
-) -> PyResult<f64> {
+fn modularity(graph: &Bound<'_, PyAny>, partition: &Bound<'_, PyDict>) -> PyResult<f64> {
     let edges = get_edges(graph)?;
     let graph = build_graph(edges);
-    
+
     Ok(operators::get_modularity_from_partition(
         &to_partition(partition)?,
-        &graph
+        &graph,
     ))
-}
-
-/// Fast community detection without using PESA-II selection
-///
-/// # Parameters
-/// - `graph` (networkx.Graph): The graph for community detection
-/// - `debug` (bool, optional): Enable debug output. Defaults to False
-///
-/// # Returns
-/// - dict[int, int]: Mapping of node IDs to their detected community IDs
-#[pyfunction(name = "fast")]
-#[pyo3(signature = (graph, debug = false))]
-fn fast(
-    py: Python<'_>,
-    graph: &Bound<'_, PyAny>,
-    debug: bool,
-) -> PyResult<BTreeMap<i32, i32>> {
-    let edges = get_edges(graph)?;
-    let config = AlgorithmConfig::lib_args(debug);
-
-    py.allow_threads(|| {
-        let graph = build_graph(edges);
-        let (communities, _, _) = algorithms::fast_algorithm(&graph, config);
-
-        Ok(communities)
-    })
 }
 
 // ================================================================================================
@@ -129,10 +97,7 @@ fn fast(
 fn to_partition(py_dict: &Bound<'_, PyDict>) -> PyResult<Partition> {
     let mut part = BTreeMap::new();
     for (node, comm) in py_dict.iter() {
-        part.insert(
-            node.extract::<NodeId>()?, 
-            comm.extract::<CommunityId>()?
-        );
+        part.insert(node.extract::<NodeId>()?, comm.extract::<CommunityId>()?);
     }
     Ok(part)
 }
@@ -166,7 +131,6 @@ fn build_graph(edges: Vec<(NodeId, NodeId)>) -> Graph {
 
 #[pymodule]
 fn re_mocd(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(fast, m)?)?;
     m.add_function(wrap_pyfunction!(from_nx, m)?)?;
     m.add_function(wrap_pyfunction!(from_file, m)?)?;
     m.add_function(wrap_pyfunction!(modularity, m)?)?;

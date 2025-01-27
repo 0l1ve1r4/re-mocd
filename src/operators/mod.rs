@@ -19,10 +19,10 @@ mod selection;
 /// Represents the convergence criteria and state for the genetic algorithm
 #[derive(Debug)]
 pub struct ConvergenceCriteria {
-    current_best_fitness: f64,     // Current best fitness value found
-    generations_unchanged: usize,   // Number of generations without improvement
+    current_best_fitness: f64,       // Current best fitness value found
+    generations_unchanged: usize,    // Number of generations without improvement
     max_stagnant_generations: usize, // Maximum allowed generations without improvement
-    tolerance: f64,                // Numerical tolerance for fitness comparison
+    tolerance: f64,                  // Numerical tolerance for fitness comparison
 }
 
 impl Default for ConvergenceCriteria {
@@ -50,7 +50,7 @@ impl ConvergenceCriteria {
             return false;
         }
 
-        self.generations_unchanged += 1;        
+        self.generations_unchanged += 1;
         if self.generations_unchanged >= self.max_stagnant_generations {
             return true;
         }
@@ -69,15 +69,6 @@ pub fn crossover(parent1: &Partition, parent2: &Partition, rate: f64) -> Partiti
 
 pub fn mutation(partition: &mut Partition, graph: &Graph, mutation_rate: f64) {
     mutation::optimized_mutate(partition, graph, mutation_rate);
-}
-
-pub fn selection(
-    population: Vec<Partition>,
-    fitnesses: Vec<metrics::Metrics>,
-    pop_size: usize,
-    tournament_size: usize,
-) -> Vec<Partition> {
-    selection::optimized_selection(population, fitnesses, pop_size, tournament_size)
 }
 
 pub fn get_fitness(

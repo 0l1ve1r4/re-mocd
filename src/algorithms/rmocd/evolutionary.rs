@@ -4,7 +4,7 @@
 //! Copyright 2024 - Guilherme Santos. If a copy of the MPL was not distributed with this
 //! file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
 
-use crate::algorithms::pesa_ii::{hypergrid, HyperBox, Solution};
+use crate::algorithms::rmocd::{hypergrid, HyperBox, Solution};
 use crate::operators::*;
 
 use rayon::prelude::*;
@@ -92,16 +92,53 @@ pub fn evolutionary_phase(
     args: &AGArgs,
     degrees: &HashMap<i32, usize, FxBuildHasher>,
 ) -> (Vec<Solution>, Vec<f64>) {
-    let mut archive: Vec<Solution> = Vec::with_capacity(args.pop_size);
-    let mut population = generate_population(graph, args.pop_size);
-    let mut best_fitness_history: Vec<f64> = Vec::with_capacity(args.num_gens);
+    // Validate graph
+    if graph.nodes.is_empty() || graph.edges.is_empty() {
+        println!("[evolutionary_phase]: Empty graph detected");
+        return (Vec::new(), Vec::new());
+    }
 
+    // Debug print graph information
+    if args.debug {
+        println!(
+            "[evolutionary_phase]: Starting with graph - nodes: {}, edges: {}",
+            graph.nodes.len(),
+            graph.edges.len()
+        );
+    }
+
+    let mut archive: Vec<Solution> = Vec::with_capacity(args.pop_size);
+    
+    // Generate and validate initial population
+    let mut population = generate_population(graph, args.pop_size);
+    if population.is_empty() {
+        println!("[evolutionary_phase]: Failed to generate initial population");
+        return (Vec::new(), Vec::new());
+    }
+
+    if args.debug {
+        println!(
+            "[evolutionary_phase]: Initial population size: {}",
+            population.len()
+        );
+    }
+
+    let mut best_fitness_history: Vec<f64> = Vec::with_capacity(args.num_gens);
     let mut max_local: ConvergenceCriteria = ConvergenceCriteria::default();
 
     for generation in 0..args.num_gens {
+        // Validate population size before parallel processing
+        let num_threads = rayon::current_num_threads();
+        let chunk_size = population.len().max(1) / num_threads;
+        
+        if chunk_size == 0 {
+            println!("[evolutionary_phase]: Population too small for parallelization");
+            break;
+        }
+
         // Evaluate current population and update archive
         let solutions: Vec<Solution> = population
-            .par_chunks(population.len() / rayon::current_num_threads())
+            .par_chunks(chunk_size)
             .flat_map(|chunk| {
                 chunk
                     .iter()
@@ -116,6 +153,11 @@ pub fn evolutionary_phase(
             })
             .collect();
 
+        if solutions.is_empty() {
+            println!("[evolutionary_phase]: No valid solutions generated");
+            break;
+        }
+
         // Update Pareto archive
         for solution in solutions {
             if !archive.iter().any(|archived| archived.dominates(&solution)) {
@@ -124,27 +166,51 @@ pub fn evolutionary_phase(
             }
         }
 
+        if archive.is_empty() {
+            println!("[evolutionary_phase]: Empty archive after update");
+            break;
+        }
+
         if archive.len() > MAX_ARCHIVE_SIZE {
             hypergrid::truncate_archive(&mut archive, MAX_ARCHIVE_SIZE);
         }
 
+        // Validate archive before creating hyperboxes
+        if archive.is_empty() {
+            println!("[evolutionary_phase]: Empty archive after truncation");
+            break;
+        }
+
         // Create hyperboxes from archive
         let hyperboxes: Vec<HyperBox> = hypergrid::create(&archive, hypergrid::GRID_DIVISIONS);
+        
+        if hyperboxes.is_empty() {
+            println!("[evolutionary_phase]: No valid hyperboxes created");
+            break;
+        }
 
-        // Record the best fitness (using first objective as an example)
+        // Safely compute best fitness
         let best_fitness = archive
-        .iter()
-        .map(|s| 1.0 - s.objectives[0] - s.objectives[1])  // Q = 1 - inter - intra
-        .max_by(|a, b| a.partial_cmp(b).unwrap())
-        .unwrap();
+            .iter()
+            .map(|s| 1.0 - s.objectives[0] - s.objectives[1])
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap_or(f64::NEG_INFINITY);
+
         best_fitness_history.push(best_fitness);
 
-        // Generate new population in parallel
-        population = generate_new_population(&hyperboxes, args, graph);
+        // Generate new population with validation
+        let new_population = generate_new_population(&hyperboxes, args, graph);
+        if new_population.is_empty() {
+            println!("[evolutionary_phase]: Failed to generate new population");
+            break;
+        }
+        population = new_population;
 
         // Early stopping
         if max_local.has_converged(best_fitness) {
-            if args.debug { println!("[evolutionary_phase]: Converged!"); }
+            if args.debug {
+                println!("[evolutionary_phase]: Converged!");
+            }
             break;
         }
 
@@ -158,6 +224,11 @@ pub fn evolutionary_phase(
                 max_local.get_best_fitness(),
             );
         }
+    }
+
+    // Return empty results if archive is empty
+    if archive.is_empty() {
+        return (Vec::new(), best_fitness_history);
     }
 
     (archive, best_fitness_history)
