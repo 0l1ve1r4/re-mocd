@@ -60,14 +60,14 @@ jobs:
           ls -l target/wheels/
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.os }}-${{ matrix.python-version }}
           path: target/wheels/*.whl
 
       - name: Upload sdist
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.9'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sdist
           path: target/wheels/*.tar.gz
