@@ -81,7 +81,8 @@ pub fn get_fitness(
 }
 
 pub fn generate_population(graph: &Graph, population_size: usize) -> Vec<Partition> {
-    population::generate_optimized_population(graph, population_size)
+    population::generate_initial_population(graph, population_size)
+    // population::generate_optimized_population(graph, population_size)
 }
 
 #[allow(dead_code)]

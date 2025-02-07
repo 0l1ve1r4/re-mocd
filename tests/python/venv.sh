@@ -2,7 +2,7 @@
 
 set -e
 
-VENV_DIR="./tests/python/.venv"
+VENV_DIR=".venv"
 
 if [ -d "$VENV_DIR" ]; then
   echo "Virtual environment already exists at $VENV_DIR"

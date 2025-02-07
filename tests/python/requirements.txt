@@ -3,8 +3,12 @@ cdlib==0.2.6
 matplotlib==3.8.0
 numpy==1.26.0
 pandas==2.1.2
-re_mocd
 igraph
 leidenalg
 PyQt5
 tabulate
+pymoo
+jupyter
+seaborn
+scikit-learn
+deap
