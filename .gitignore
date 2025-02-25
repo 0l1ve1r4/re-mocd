@@ -7,6 +7,9 @@ __pycache__
 /myenv
 .venv/
 
+# folders
+experiments/
+
 # Specific output files
 output.json
 mocd_output.csv

@@ -10,6 +10,7 @@ use rand::Rng;
 use rustc_hash::FxHashSet as HashSet;
 use std::collections::BTreeMap;
 
+#[allow(dead_code)]
 pub fn generate_optimized_population(graph: &Graph, population_size: usize) -> Vec<Partition> {
     let mut rng = rand::thread_rng();
     let nodes: Vec<NodeId> = graph.nodes.iter().copied().collect();
