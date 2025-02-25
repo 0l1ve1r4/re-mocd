@@ -77,12 +77,10 @@ impl Graph {
         self.adjacency_list.get(node).map_or(&[], |x| x)
     }
 
-    #[allow(dead_code)]
     pub fn num_nodes(&self) -> usize {
         self.nodes.len()
     }
 
-    #[allow(dead_code)]
     pub fn num_edges(&self) -> usize {
         self.edges.len()
     }
@@ -110,6 +108,34 @@ mod test {
         graph.add_edge(0, 4);
 
         assert_eq!(graph.num_nodes(), 4);
+    }
+
+    #[test]
+    fn test_neighbors() {
+        let mut graph: Graph = Graph::new();
+        graph.add_edge(0, 1);
+        graph.add_edge(0, 2);
+        graph.add_edge(0, 4);
+
+        assert_eq!(graph.neighbors(&0), [1,2,4]);      
+    }
+
+
+    #[test]
+    fn test_precompute_degress() {
+        let mut graph: Graph = Graph::new();
+        graph.add_edge(0, 1);
+        graph.add_edge(0, 2);
+        graph.add_edge(0, 4);
+
+        let mut expected = HashMap::default();
+        expected.insert(0, 3);
+        expected.insert(2, 1);
+        expected.insert(4, 1);
+        expected.insert(1, 1);
+
+        assert_eq!(graph.precompute_degress(), expected);
+
     }
 
     #[test]

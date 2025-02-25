@@ -1,4 +1,4 @@
-const NUM_RANDOM_NETWORKS: usize = 3;
+const NUM_RANDOM_NETWORKS: usize = 1;
 
 use crate::graph::{self, Graph, Partition, CommunityId, NodeId};
 use crate::utils::args::AGArgs;
