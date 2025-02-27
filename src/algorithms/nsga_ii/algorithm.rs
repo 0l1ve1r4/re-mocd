@@ -1,52 +1,33 @@
-const NUM_RANDOM_NETWORKS: usize = 1;
-
-use crate::graph::{self, Graph, Partition, CommunityId, NodeId};
+use crate::graph::{Graph, Partition};
 use crate::utils::args::AGArgs;
 use super::evolutionary::evolutionary_phase;
 
 use rustc_hash::FxBuildHasher;
-use std::collections::{HashMap, BTreeMap};
-use rand::thread_rng;
-use rand::seq::SliceRandom as _;
+use std::collections::HashMap;
+use std::cmp::Ordering;
 
-#[derive(Default)]
-struct GraphLevel {
-    graph: Graph,
-    partition: Option<Partition>,  // Alterado para Option
-    mapping: BTreeMap<CommunityId, Vec<NodeId>>,
-}
-
-/// Main run function that creates both the real and random fronts, then
-/// selects the best solution via the chosen criterion.
 pub fn nsga_ii(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
+    // Precompute degrees (or any other helper information)
     let degrees: HashMap<i32, usize, FxBuildHasher> = graph.precompute_degress();
 
-    // Phase 1: Evolutionary algorithm returns the Pareto frontier for the real network
+    // Phase 1: Run the evolutionary algorithm to get the Pareto frontier and fitness history.
     let (final_solutions, best_fitness_history) = evolutionary_phase(graph, &args, &degrees);
 
-    // Phase 2: Selection Model, best solution based on strategy
-    let best_solution = if NUM_RANDOM_NETWORKS == 0 {
-        // Use Max Q selection
-        max_q_selection(&archive)
-    } else {
-        // Generate multiple random networks and their archives
-        let random_networks = generate_random_networks(graph, NUM_RANDOM_NETWORKS);
-        let random_archives: Vec<Vec<Solution>> = random_networks
-            .iter()
-            .map(|random_graph| {
-                let random_degrees = random_graph.precompute_degress();
-                let (random_archive, _) = evolutionary_phase(random_graph, &args, &random_degrees);
-                random_archive
-            })
-            .collect();
-
-        // Use Min-Max selection with random archives
-        min_max_selection(&archive, &random_archives)
-    };
+    // Select the best solution.
+    // Note: Since NSGA-II is multiobjective, there is no inherent single "best" solution.
+    // Here, we choose the one with the lowest first objective value.
+    let best_solution = final_solutions
+        .into_iter()
+        .min_by(|a, b| {
+            a.objectives[0]
+                .partial_cmp(&b.objectives[0])
+                .unwrap_or(Ordering::Equal)
+        })
+        .expect("No solution found");
 
     (
-        best_solution.partition.clone(),
-        best_fitness_history,
-        best_solution.objectives[0],
+        best_solution.partition.clone(), // Return the partition (e.g., a Vec of size 64)
+        best_fitness_history,              // Return the fitness history vector
+        best_solution.objectives[0],       // Return the best solution's first objective value
     )
 }

@@ -53,10 +53,13 @@ G = nx.Graph([
 ])
 
 # detect from a networkx.Graph()
-partition = re_mocd.from_nx(G)
+partition = re_mocd.pesa_ii(G)
+
+# You also can use NSGA_II
+partition = re_mocd.nsga_ii(G)
 
 # Check modularity
-mod = re_mocd.get_modularity(G, partition)
+mod = re_mocd.fitness(G, partition)
 ```
 
 ### From an Edge List File  

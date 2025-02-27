@@ -98,7 +98,7 @@ fn nsga_ii(py: Python<'_>, graph: &Bound<'_, PyAny>, multi_level: bool, debug: b
 /// # Returns
 /// - float: Modularity score based on (Shi, 2012) multi-objective modularity equation
 #[pyfunction(name = "modularity")]
-fn modularity(graph: &Bound<'_, PyAny>, partition: &Bound<'_, PyDict>) -> PyResult<f64> {
+fn fitness(graph: &Bound<'_, PyAny>, partition: &Bound<'_, PyDict>) -> PyResult<f64> {
     let edges = get_edges(graph)?;
     let graph = build_graph(edges);
 
@@ -152,6 +152,6 @@ fn build_graph(edges: Vec<(NodeId, NodeId)>) -> Graph {
 fn re_mocd(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pesa_ii, m)?)?;
     m.add_function(wrap_pyfunction!(nsga_ii, m)?)?;
-    m.add_function(wrap_pyfunction!(modularity, m)?)?;
+    m.add_function(wrap_pyfunction!(fitness, m)?)?;
     Ok(())
 }
