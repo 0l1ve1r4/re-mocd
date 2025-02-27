@@ -7,7 +7,6 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict};
 use std::collections::BTreeMap;
-use std::path::Path;
 
 mod algorithms;
 mod graph;
@@ -21,6 +20,7 @@ use utils::args::AGArgs as AlgorithmConfig;
 // Py functions
 // ================================================================================================
 
+/* DEPRECATED
 /// Performs community detection on a graph from an edge list file
 ///
 /// # Parameters
@@ -42,6 +42,7 @@ fn from_file(file_path: String) -> PyResult<BTreeMap<i32, i32>> {
 
     Ok(communities)
 }
+*/
 
 /// Takes a NetworkX Graph as input and performs community detection
 ///
@@ -151,7 +152,6 @@ fn build_graph(edges: Vec<(NodeId, NodeId)>) -> Graph {
 fn re_mocd(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pesa_ii, m)?)?;
     m.add_function(wrap_pyfunction!(nsga_ii, m)?)?;
-    m.add_function(wrap_pyfunction!(from_file, m)?)?;
     m.add_function(wrap_pyfunction!(modularity, m)?)?;
     Ok(())
 }

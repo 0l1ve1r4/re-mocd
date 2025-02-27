@@ -4,7 +4,6 @@
 //! Copyright 2024 - Guilherme Santos. If a copy of the MPL was not distributed with this
 //! file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
 
-use crate::algorithms::rmocd::{hypergrid, HyperBox, Solution};
 use crate::operators::*;
 
 use rayon::prelude::*;
@@ -12,79 +11,153 @@ use rustc_hash::FxBuildHasher;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
-use std::sync::atomic::{AtomicU64, Ordering};
-
 use crate::graph::{Graph, Partition};
 use crate::utils::args::AGArgs;
 
 pub const MAX_ARCHIVE_SIZE: usize = 100;
 
-/// Thread-safe random number generator management
-struct SafeRng {
-    seed_counter: AtomicU64,
+pub struct Solution {
+    pub partition: Partition,
+    pub objectives: Vec<f64>,
+    pub rank: usize,
+    pub crowding_distance: f64,
 }
 
-impl SafeRng {
-    fn new() -> Self {
-        Self {
-            seed_counter: AtomicU64::new(0),
-        }
-    }
-
-    fn get_rng(&self) -> ChaCha8Rng {
-        let seed = self.seed_counter.fetch_add(1, Ordering::SeqCst);
-        ChaCha8Rng::seed_from_u64(seed)
+fn tournament_selection(parents: &[Solution], rng: &mut ChaCha8Rng) -> &Solution {
+    let i = rng.gen_range(0..parents.len());
+    let j = rng.gen_range(0..parents.len());
+    let a = &parents[i];
+    let b = &parents[j];
+    if a.rank < b.rank || (a.rank == b.rank && a.crowding_distance > b.crowding_distance) {
+        a
+    } else {
+        b
     }
 }
 
-/// Parallel population generation using PESA-II selection and reproduction
-fn generate_new_population(
-    hyperboxes: &[HyperBox],
+fn generate_offspring(
+    parent_solutions: &[Solution],
     args: &AGArgs,
     graph: &Graph,
+    safe_rng: Arc<SafeRng>,
 ) -> Vec<Partition> {
-    // Create thread-safe RNG
-    let safe_rng = Arc::new(SafeRng::new());
-
-    // Calculate chunk size based on available threads
     let chunk_size = (args.pop_size / rayon::current_num_threads()).max(1);
-
-    // Create chunks for parallel processing
     let chunks: Vec<_> = (0..args.pop_size)
         .collect::<Vec<_>>()
         .chunks(chunk_size)
         .map(|c| c.len())
         .collect();
 
-    // Process chunks in parallel
     let results: Vec<Partition> = chunks
         .par_iter()
         .flat_map(|&chunk_size| {
             let mut local_children = Vec::with_capacity(chunk_size);
-            let safe_rng = Arc::clone(&safe_rng);
-
-            // Create a thread-local RNG
             let mut local_rng = safe_rng.get_rng();
-
-            // Process each chunk
             for _ in 0..chunk_size {
-                // Thread-safe selection of parents
-                let parent1 = hypergrid::select(hyperboxes, &mut local_rng);
-                let parent2 = hypergrid::select(hyperboxes, &mut local_rng);
-
-                // Perform crossover and mutation
+                let parent1 = tournament_selection(parent_solutions, &mut local_rng);
+                let parent2 = tournament_selection(parent_solutions, &mut local_rng);
                 let mut child = crossover(&parent1.partition, &parent2.partition, args.cross_rate);
                 mutation(&mut child, graph, args.mut_rate);
                 local_children.push(child);
             }
-
             local_children
         })
         .collect();
-
     results
+}
+
+fn non_dominated_sort(solutions: &mut [Solution]) -> Vec<Vec<Solution>> {
+    let mut fronts = Vec::new();
+    let mut current_front = Vec::new();
+    let mut solution_info = vec![(0, Vec::new(), 0); solutions.len()];
+
+    for i in 0..solutions.len() {
+        let mut dominated = Vec::new();
+        let mut count = 0;
+        for j in 0..solutions.len() {
+            if i == j { continue; }
+            if solutions[i].dominates(&solutions[j]) {
+                dominated.push(j);
+            } else if solutions[j].dominates(&solutions[i]) {
+                count += 1;
+            }
+        }
+        solution_info[i] = (count, dominated, 0);
+        if count == 0 {
+            current_front.push(i);
+        }
+    }
+
+    let mut rank = 0;
+    while !current_front.is_empty() {
+        let mut next_front = Vec::new();
+        for &i in &current_front {
+            solution_info[i].2 = rank;
+            for &j in &solution_info[i].1 {
+                solution_info[j].0 -= 1;
+                if solution_info[j].0 == 0 {
+                    next_front.push(j);
+                }
+            }
+        }
+        let mut front = current_front.iter().map(|&i| solutions[i].clone()).collect();
+        fronts.push(front);
+        current_front = next_front;
+        rank += 1;
+    }
+
+    for (i, info) in solution_info.iter().enumerate() {
+        solutions[i].rank = info.2;
+    }
+
+    fronts
+}
+
+fn calculate_crowding_distance(front: &mut [Solution]) {
+    let len = front.len();
+    if len == 0 { return; }
+
+    let num_objs = front[0].objectives.len();
+    for s in front.iter_mut() {
+        s.crowding_distance = 0.0;
+    }
+
+    for obj_idx in 0..num_objs {
+        front.sort_by(|a, b| a.objectives[obj_idx].partial_cmp(&b.objectives[obj_idx]).unwrap());
+        front[0].crowding_distance = f64::INFINITY;
+        front[len - 1].crowding_distance = f64::INFINITY;
+
+        let min = front[0].objectives[obj_idx];
+        let max = front[len - 1].objectives[obj_idx];
+        let range = max - min;
+        if range <= f64::EPSILON { continue; }
+
+        for i in 1..len-1 {
+            front[i].crowding_distance += (front[i+1].objectives[obj_idx] - front[i-1].objectives[obj_idx]) / range;
+        }
+    }
+}
+
+fn select_next_population(fronts: Vec<Vec<Solution>>, pop_size: usize) -> Vec<Solution> {
+    let mut selected = Vec::with_capacity(pop_size);
+    let mut remaining = pop_size;
+
+    for mut front in fronts {
+        if front.is_empty() { continue; }
+        if selected.len() + front.len() <= pop_size {
+            selected.append(&mut front);
+        } else {
+            front.sort_by(|a, b| b.crowding_distance.partial_cmp(&a.crowding_distance).unwrap());
+            let take = remaining.min(front.len());
+            selected.extend(front.into_iter().take(take));
+            break;
+        }
+        remaining = pop_size - selected.len();
+        if remaining == 0 { break; }
+    }
+
+    selected
 }
 
 pub fn evolutionary_phase(
@@ -92,144 +165,38 @@ pub fn evolutionary_phase(
     args: &AGArgs,
     degrees: &HashMap<i32, usize, FxBuildHasher>,
 ) -> (Vec<Solution>, Vec<f64>) {
-    // Validate graph
-    if graph.nodes.is_empty() || graph.edges.is_empty() {
-        println!("[evolutionary_phase]: Empty graph detected");
-        return (Vec::new(), Vec::new());
-    }
-
-    // Debug print graph information
-    if args.debug {
-        println!(
-            "[evolutionary_phase]: Starting with graph - nodes: {}, edges: {}",
-            graph.nodes.len(),
-            graph.edges.len()
-        );
-    }
-
-    let mut archive: Vec<Solution> = Vec::with_capacity(args.pop_size);
-    
-    // Generate and validate initial population
+    // Initial population and evaluation
     let mut population = generate_population(graph, args.pop_size);
-    if population.is_empty() {
-        println!("[evolutionary_phase]: Failed to generate initial population");
-        return (Vec::new(), Vec::new());
-    }
-
-    if args.debug {
-        println!(
-            "[evolutionary_phase]: Initial population size: {}",
-            population.len()
-        );
-    }
-
-    let mut best_fitness_history: Vec<f64> = Vec::with_capacity(args.num_gens);
-    let mut max_local: ConvergenceCriteria = ConvergenceCriteria::default();
+    let mut current_solutions = evaluate_population(&population, graph, degrees);
+    let safe_rng = Arc::new(SafeRng::new());
+    let mut best_fitness_history = Vec::new();
 
     for generation in 0..args.num_gens {
-        // Validate population size before parallel processing
-        let num_threads = rayon::current_num_threads();
-        let chunk_size = population.len().max(1) / num_threads;
-        
-        if chunk_size == 0 {
-            println!("[evolutionary_phase]: Population too small for parallelization");
-            break;
+        // Generate offspring
+        let offspring_partitions = generate_offspring(t_solutions, args, graph, Arc::clone(&safe_rng));
+        let offspring_solutions = evaluate_population(&offspring_partitions, graph, degrees);
+
+        // Combine and sort
+        let mut combined = [current_solutions.clone(), offspring_solutions].concat();
+        let mut fronts = non_dominated_sort(&mut combined);
+        for front in &mut fronts {
+            calculate_crowding_distance(front);
         }
 
-        // Evaluate current population and update archive
-        let solutions: Vec<Solution> = population
-            .par_chunks(chunk_size)
-            .flat_map(|chunk| {
-                chunk
-                    .iter()
-                    .map(|partition| {
-                        let metrics = get_fitness(graph, partition, degrees, true);
-                        Solution {
-                            partition: partition.clone(),
-                            objectives: vec![metrics.inter, metrics.intra],
-                        }
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .collect();
+        // Select next generation
+        current_solutions = select_next_population(fronts, args.pop_size);
+        population = current_solutions.iter().map(|s| s.partition.clone()).collect();
 
-        if solutions.is_empty() {
-            println!("[evolutionary_phase]: No valid solutions generated");
-            break;
-        }
-
-        // Update Pareto archive
-        for solution in solutions {
-            if !archive.iter().any(|archived| archived.dominates(&solution)) {
-                archive.retain(|archived| !solution.dominates(archived));
-                archive.push(solution);
-            }
-        }
-
-        if archive.is_empty() {
-            println!("[evolutionary_phase]: Empty archive after update");
-            break;
-        }
-
-        if archive.len() > MAX_ARCHIVE_SIZE {
-            hypergrid::truncate_archive(&mut archive, MAX_ARCHIVE_SIZE);
-        }
-
-        // Validate archive before creating hyperboxes
-        if archive.is_empty() {
-            println!("[evolutionary_phase]: Empty archive after truncation");
-            break;
-        }
-
-        // Create hyperboxes from archive
-        let hyperboxes: Vec<HyperBox> = hypergrid::create(&archive, hypergrid::GRID_DIVISIONS);
-        
-        if hyperboxes.is_empty() {
-            println!("[evolutionary_phase]: No valid hyperboxes created");
-            break;
-        }
-
-        // Safely compute best fitness
-        let best_fitness = archive
-            .iter()
+        // Track best fitness
+        let best_fitness = current_solutions.iter()
             .map(|s| 1.0 - s.objectives[0] - s.objectives[1])
             .max_by(|a, b| a.partial_cmp(b).unwrap())
-            .unwrap_or(f64::NEG_INFINITY);
-
+            .unwrap_or(0.0);
         best_fitness_history.push(best_fitness);
 
-        // Generate new population with validation
-        let new_population = generate_new_population(&hyperboxes, args, graph);
-        if new_population.is_empty() {
-            println!("[evolutionary_phase]: Failed to generate new population");
-            break;
-        }
-        population = new_population;
-
-        // Early stopping
-        if max_local.has_converged(best_fitness) {
-            if args.debug {
-                println!("[evolutionary_phase]: Converged!");
-            }
-            break;
-        }
-
-        if args.debug {
-            println!(
-                "\x1b[1A\x1b[2K[evolutionary_phase]: gen: {} | bf: {:.4} | pop/arch: {}/{} | bA: {:.4} |",
-                generation,
-                best_fitness,
-                population.len(),
-                archive.len(),
-                max_local.get_best_fitness(),
-            );
-        }
+        // Convergence check (existing code)
+        // ...
     }
 
-    // Return empty results if archive is empty
-    if archive.is_empty() {
-        return (Vec::new(), best_fitness_history);
-    }
-
-    (archive, best_fitness_history)
+    (current_solutions, best_fitness_history)
 }

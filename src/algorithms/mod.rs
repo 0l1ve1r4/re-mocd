@@ -3,7 +3,8 @@
 //! Copyright 2024 - Guilherme Santos. If a copy of the MPL was not distributed with this
 //! file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
 
-mod rmocd;
+mod pesa_ii;
+mod nsga_ii;
 
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -12,11 +13,10 @@ use crate::graph::{Graph, Partition};
 use crate::utils::args::AGArgs;
 
 pub fn nsga_ii(graph: &Graph, mut args: AGArgs) -> (Partition, Vec<f64>, f64) {
-    // TODO
     args.parallelism = true;
     let (best_solution, 
         best_fitness_history, 
-        highest_modularity) = rmocd::run(graph, args);
+        highest_modularity) = nsga_ii::run(graph, args);
     (
         normalize_community_ids(best_solution),
         best_fitness_history,
@@ -28,7 +28,7 @@ pub fn pesa_ii(graph: &Graph, mut args: AGArgs) -> (Partition, Vec<f64>, f64) {
     args.parallelism = true;
     let (best_solution, 
         best_fitness_history, 
-        highest_modularity) = rmocd::run(graph, args);
+        highest_modularity) = pesa_ii::run(graph, args);
     (
         normalize_community_ids(best_solution),
         best_fitness_history,
