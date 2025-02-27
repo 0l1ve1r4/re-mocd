@@ -38,7 +38,7 @@ fn from_file(file_path: String) -> PyResult<BTreeMap<i32, i32>> {
     }
 
     let graph = Graph::from_edgelist(Path::new(&config.file_path))?;
-    let (communities, _, _) = algorithms::select(&graph, config);
+    let (communities, _, _) = algorithms::pesa_ii(&graph, config);
 
     Ok(communities)
 }
@@ -52,9 +52,9 @@ fn from_file(file_path: String) -> PyResult<BTreeMap<i32, i32>> {
 ///
 /// # Returns
 /// - dict[int, int]: Mapping of node IDs to their detected community IDs
-#[pyfunction(name = "from_nx")]
+#[pyfunction(name = "pesa_ii")]
 #[pyo3(signature = (graph, multi_level = false, debug = false))]
-fn from_nx(py: Python<'_>, graph: &Bound<'_, PyAny>, multi_level: bool, debug: bool) -> PyResult<BTreeMap<i32, i32>> {
+fn pesa_ii(py: Python<'_>, graph: &Bound<'_, PyAny>, multi_level: bool, debug: bool) -> PyResult<BTreeMap<i32, i32>> {
     let edges = get_edges(graph)?;
     let config = AlgorithmConfig::lib_args(debug, multi_level);
 
@@ -64,7 +64,25 @@ fn from_nx(py: Python<'_>, graph: &Bound<'_, PyAny>, multi_level: bool, debug: b
 
     py.allow_threads(|| {
         let graph = build_graph(edges);
-        let (communities, _, _) = algorithms::select(&graph, config);
+        let (communities, _, _) = algorithms::pesa_ii(&graph, config);
+
+        Ok(communities)
+    })
+}
+
+#[pyfunction(name = "nsga_ii")]
+#[pyo3(signature = (graph, multi_level = false, debug = false))]
+fn nsga_ii(py: Python<'_>, graph: &Bound<'_, PyAny>, multi_level: bool, debug: bool) -> PyResult<BTreeMap<i32, i32>> {
+    let edges = get_edges(graph)?;
+    let config = AlgorithmConfig::lib_args(debug, multi_level);
+
+    if config.debug {
+        println!("{:?}", config);
+    }
+
+    py.allow_threads(|| {
+        let graph = build_graph(edges);
+        let (communities, _, _) = algorithms::nsga_ii(&graph, config);
 
         Ok(communities)
     })
@@ -131,7 +149,8 @@ fn build_graph(edges: Vec<(NodeId, NodeId)>) -> Graph {
 
 #[pymodule]
 fn re_mocd(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(from_nx, m)?)?;
+    m.add_function(wrap_pyfunction!(pesa_ii, m)?)?;
+    m.add_function(wrap_pyfunction!(nsga_ii, m)?)?;
     m.add_function(wrap_pyfunction!(from_file, m)?)?;
     m.add_function(wrap_pyfunction!(modularity, m)?)?;
     Ok(())
