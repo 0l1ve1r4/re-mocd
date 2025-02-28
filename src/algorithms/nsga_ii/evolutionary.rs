@@ -64,7 +64,7 @@ pub fn evolutionary_phase(
     }
 
     // Debug print graph information
-    if args.debug {
+    if args.debug >= 2 {
         println!(
             "[evolutionary_phase]: Starting with graph - nodes: {}, edges: {}",
             graph.nodes.len(),
@@ -82,7 +82,7 @@ pub fn evolutionary_phase(
         return (Vec::new(), Vec::new());
     }
 
-    if args.debug {
+    if args.debug >= 2 {
         println!(
             "[evolutionary_phase]: Initial population size: {}",
             population.len()
@@ -103,7 +103,7 @@ pub fn evolutionary_phase(
         });
     }
 
-    if args.debug {
+    if args.debug >= 3 {
         println!("[evolutionary_phase]: Evaluated initial population. Solution count: {}", solutions.len());
         println!("[evolutionary_phase]: First solution objectives: {:?}", 
                  solutions.first().map(|s| s.objectives.clone()).unwrap_or_default());
@@ -117,7 +117,7 @@ pub fn evolutionary_phase(
             break;
         }
 
-        if args.debug {
+        if args.debug >= 3 {
             println!("[evolutionary_phase]: Generation {}, solution count: {}", generation, solutions.len());
         }
 
@@ -129,7 +129,7 @@ pub fn evolutionary_phase(
             break;
         }
 
-        if args.debug {
+        if args.debug >= 3 {
             println!("[evolutionary_phase]: Non-dominated sorting created {} fronts", fronts.len());
             for (i, front) in fronts.iter().enumerate() {
                 println!("[evolutionary_phase]: Front {} has {} solutions", i, front.len());
@@ -139,7 +139,7 @@ pub fn evolutionary_phase(
         // Calculate crowding distance for each front
         let mut ranked_solutions: Vec<Solution> = Vec::new();
         for (front_idx, front) in fronts.iter().enumerate() {
-            if args.debug {
+            if args.debug >= 3 {
                 println!("[evolutionary_phase]: Processing front {} with {} solutions", front_idx, front.len());
             }
             
@@ -155,7 +155,7 @@ pub fn evolutionary_phase(
                 }
             }
             
-            if args.debug {
+            if args.debug >= 3 {
                 println!("[evolutionary_phase]: Calculating crowding distance for front {}, {} solutions", 
                          front_idx, front_solutions.len());
             }
@@ -167,7 +167,7 @@ pub fn evolutionary_phase(
             ranked_solutions.extend(front_solutions);
         }
 
-        if args.debug {
+        if args.debug >= 3 {
             println!("[evolutionary_phase]: Ranked solutions: {}", ranked_solutions.len());
         }
 
@@ -177,7 +177,7 @@ pub fn evolutionary_phase(
                 let a_rank = find_solution_rank(&solutions, a, &fronts);
                 let b_rank = find_solution_rank(&solutions, b, &fronts);
                 
-                if args.debug && (a_rank.is_none() || b_rank.is_none()) {
+                if args.debug >= 4 && (a_rank.is_none() || b_rank.is_none()) {
                     println!("[evolutionary_phase]: WARNING: Could not find rank for one or more solutions");
                 }
                 
@@ -194,7 +194,7 @@ pub fn evolutionary_phase(
 
         // Truncate to population size
         if ranked_solutions.len() > args.pop_size {
-            if args.debug {
+            if args.debug >= 4 {
                 println!("[evolutionary_phase]: Truncating ranked solutions from {} to {}", 
                          ranked_solutions.len(), args.pop_size);
             }
@@ -217,7 +217,7 @@ pub fn evolutionary_phase(
                 }
             }
             
-            if args.debug {
+            if args.debug >= 4 {
                 println!("[evolutionary_phase]: Updated archive, now contains {} solutions", archive.len());
             }
         }
@@ -225,7 +225,7 @@ pub fn evolutionary_phase(
         // Limit archive size if needed
         if archive.len() > MAX_ARCHIVE_SIZE {
             // Sort by crowding distance and keep the most diverse solutions
-            if args.debug {
+            if args.debug >= 4 {
                 println!("[evolutionary_phase]: Archive exceeds max size ({}), calculating crowding distances", 
                          MAX_ARCHIVE_SIZE);
             }
@@ -251,7 +251,7 @@ pub fn evolutionary_phase(
         // Generate new population through selection, crossover, and mutation
         let mut offspring = Vec::with_capacity(args.pop_size);
         
-        if args.debug {
+        if args.debug >= 3 {
             println!("[evolutionary_phase]: Generating offspring population");
         }
         
@@ -287,13 +287,13 @@ pub fn evolutionary_phase(
 
         // Early stopping
         if max_local.has_converged(best_fitness) {
-            if args.debug {
+            if args.debug >= 1 {
                 println!("[evolutionary_phase]: Converged!");
             }
             break;
         }
 
-        if args.debug {
+        if args.debug >= 1 {
             println!(
                 "\x1b[1A\x1b[2K[evolutionary_phase]: gen: {} | bf: {:.4} | pop/arch: {}/{} | bA: {:.4} |",
                 generation,
@@ -307,7 +307,7 @@ pub fn evolutionary_phase(
 
     // Return empty results if archive is empty
     if archive.is_empty() {
-        if args.debug {
+        if args.debug >= 3 {
             println!("[evolutionary_phase]: WARNING: Empty archive at end of evolution");
         }
         return (Vec::new(), best_fitness_history);
@@ -391,7 +391,7 @@ fn fast_non_dominated_sort(solutions: &[Solution]) -> Vec<Vec<usize>> {
 fn calculate_crowding_distance(solutions: &mut Vec<Solution>, args: &AGArgs) {
     let n = solutions.len();
     
-    if args.debug {
+    if args.debug >= 4 {
         println!("[calculate_crowding_distance]: Processing {} solutions", n);
     }
     
@@ -401,7 +401,7 @@ fn calculate_crowding_distance(solutions: &mut Vec<Solution>, args: &AGArgs) {
             solution.crowding_distance = f64::INFINITY;
         }
         
-        if args.debug {
+        if args.debug >= 4{
             println!("[calculate_crowding_distance]: Small solution set ({}), assigned infinite crowding distance", n);
         }
         
@@ -417,18 +417,18 @@ fn calculate_crowding_distance(solutions: &mut Vec<Solution>, args: &AGArgs) {
     let num_objectives = if let Some(first) = solutions.first() {
         first.objectives.len()
     } else {
-        if args.debug {
+        if args.debug >= 4{
             println!("[calculate_crowding_distance]: WARNING: Empty solution vector");
         }
         return;
     };
     
-    if args.debug {
+    if args.debug >= 4 {
         println!("[calculate_crowding_distance]: Processing {} objectives", num_objectives);
     }
     
     for m in 0..num_objectives {
-        if args.debug {
+        if args.debug >= 4{
             println!("[calculate_crowding_distance]: Processing objective {}", m);
         }
         
@@ -437,7 +437,7 @@ fn calculate_crowding_distance(solutions: &mut Vec<Solution>, args: &AGArgs) {
             if m < a.objectives.len() && m < b.objectives.len() {
                 a.objectives[m].partial_cmp(&b.objectives[m]).unwrap_or(std::cmp::Ordering::Equal)
             } else {
-                if args.debug {
+                if args.debug >= 4{
                     println!("[calculate_crowding_distance]: ERROR: Objective index {} out of bounds (sizes: {}, {})",
                              m, a.objectives.len(), b.objectives.len());
                 }
@@ -458,7 +458,7 @@ fn calculate_crowding_distance(solutions: &mut Vec<Solution>, args: &AGArgs) {
         if n > 2 && m < solutions[0].objectives.len() && m < solutions[n-1].objectives.len() {
             let obj_range = solutions[n-1].objectives[m] - solutions[0].objectives[m];
             
-            if args.debug {
+            if args.debug >= 4 {
                 println!("[calculate_crowding_distance]: Objective {} range: {}", m, obj_range);
             }
             
@@ -472,18 +472,18 @@ fn calculate_crowding_distance(solutions: &mut Vec<Solution>, args: &AGArgs) {
                             (solutions[i+1].objectives[m] - solutions[i-1].objectives[m]) / obj_range;
                         
                     } else {
-                        if args.debug {
+                        if args.debug >= 4{
                             println!("[calculate_crowding_distance]: ERROR: Index out of bounds at solution {}", i);
                         }
                     }
                 }
-            } else if args.debug {
+            } else if args.debug >= 4{
                 println!("[calculate_crowding_distance]: Objective {} has zero range, skipping", m);
             }
         }
     }
     
-    if args.debug {
+    if args.debug >= 4{
         println!("[calculate_crowding_distance]: Crowding distance calculation complete");
     }
 }
@@ -521,49 +521,4 @@ fn safe_tournament_selection(ranked_solutions: &[Solution], tournament_size: usi
     }
     
     &ranked_solutions[best_idx]
-}
-
-/// Generates multiple random networks and combines their solutions
-fn generate_random_networks(original: &Graph, num_networks: usize) -> Vec<Graph> {
-    (0..num_networks)
-        .map(|_| {
-            let mut random_graph = Graph {
-                nodes: original.nodes.clone(),
-                ..Default::default()
-            };
-
-            let node_vec: Vec<_> = random_graph.nodes.iter().cloned().collect();
-            let num_nodes = node_vec.len();
-            let num_edges = original.edges.len();
-            let mut rng = thread_rng();
-            let mut possible_pairs = Vec::with_capacity(num_nodes * (num_nodes - 1) / 2);
-
-            for i in 0..num_nodes {
-                for j in (i + 1)..num_nodes {
-                    possible_pairs.push((node_vec[i], node_vec[j]));
-                }
-            }
-
-            possible_pairs.shuffle(&mut rng);
-            let selected_edges = possible_pairs
-                .into_iter()
-                .take(num_edges)
-                .collect::<Vec<_>>();
-
-            for (src, dst) in &selected_edges {
-                random_graph.edges.push((*src, *dst));
-            }
-
-            for node in &random_graph.nodes {
-                random_graph.adjacency_list.insert(*node, Vec::new());
-            }
-
-            for (src, dst) in &random_graph.edges {
-                random_graph.adjacency_list.get_mut(src).unwrap().push(*dst);
-                random_graph.adjacency_list.get_mut(dst).unwrap().push(*src);
-            }
-
-            random_graph
-        })
-        .collect()
 }

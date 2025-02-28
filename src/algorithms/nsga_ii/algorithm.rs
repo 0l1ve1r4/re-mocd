@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::cmp::Ordering;
 
 pub fn nsga_ii(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
-    if args.debug {
+    if args.debug >= 2 {
         println!("[algorithms/nsga_ii/algorithm.rs]: Starting..")
     }
 

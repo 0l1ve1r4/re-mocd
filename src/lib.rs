@@ -20,46 +20,21 @@ use utils::args::AGArgs as AlgorithmConfig;
 // Py functions
 // ================================================================================================
 
-/* DEPRECATED
-/// Performs community detection on a graph from an edge list file
-///
-/// # Parameters
-/// - `file_path` (str): Path to the edge list file. Each line should represent
-///   an edge in the format: `node1,node2`
-///
-/// # Returns
-/// - dict[int, int]: Mapping of node IDs to their detected community IDs
-#[pyfunction(name = "from_file")]
-#[pyo3(signature = (file_path))]
-fn from_file(file_path: String) -> PyResult<BTreeMap<i32, i32>> {
-    let config = AlgorithmConfig::parse(&vec!["--library-".to_string(), file_path]);
-    if config.debug {
-        println!("[Detection]: Config: {:?}", config);
-    }
-
-    let graph = Graph::from_edgelist(Path::new(&config.file_path))?;
-    let (communities, _, _) = algorithms::pesa_ii(&graph, config);
-
-    Ok(communities)
-}
-*/
-
 /// Takes a NetworkX Graph as input and performs community detection
 ///
 /// # Parameters
 /// - `graph` (networkx.Graph): The graph on which to perform community detection
-/// - `multi-level`: If will use a multi-level algorithm (experimental)
-/// - `debug` (bool, optional): Enable debug output. Defaults to False
+/// - `debug` (i8, optional): Enable debug output. Large the num, large the debug. [d=0,1,2,3]
 ///
 /// # Returns
 /// - dict[int, int]: Mapping of node IDs to their detected community IDs
 #[pyfunction(name = "pesa_ii")]
-#[pyo3(signature = (graph, debug = false))]
-fn pesa_ii(py: Python<'_>, graph: &Bound<'_, PyAny>, debug: bool) -> PyResult<BTreeMap<i32, i32>> {
+#[pyo3(signature = (graph, debug = 0))]
+fn pesa_ii(py: Python<'_>, graph: &Bound<'_, PyAny>, debug: i8) -> PyResult<BTreeMap<i32, i32>> {
     let edges = get_edges(graph)?;
-    let config = AlgorithmConfig::lib_args(debug, false);
+    let config = AlgorithmConfig::lib_args(debug);
 
-    if config.debug {
+    if config.debug >= 2 {
         println!("{:?}", config);
     }
 
@@ -71,13 +46,21 @@ fn pesa_ii(py: Python<'_>, graph: &Bound<'_, PyAny>, debug: bool) -> PyResult<BT
     })
 }
 
+/// Takes a NetworkX Graph as input and performs community detection
+///
+/// # Parameters
+/// - `graph` (networkx.Graph): The graph on which to perform community detection
+/// - `debug` (i8, optional): Enable debug output. Large the num, large the debug. [d=0,1,2,3]
+///
+/// # Returns
+/// - dict[int, int]: Mapping of node IDs to their detected community IDs
 #[pyfunction(name = "nsga_ii")]
-#[pyo3(signature = (graph, debug = false))]
-fn nsga_ii(py: Python<'_>, graph: &Bound<'_, PyAny>, debug: bool) -> PyResult<BTreeMap<i32, i32>> {
+#[pyo3(signature = (graph, debug = 0))]
+fn nsga_ii(py: Python<'_>, graph: &Bound<'_, PyAny>, debug: i8) -> PyResult<BTreeMap<i32, i32>> {
     let edges = get_edges(graph)?;
-    let config = AlgorithmConfig::lib_args(debug, false);
-    
-    if config.debug {
+    let config = AlgorithmConfig::lib_args(debug);
+
+    if config.debug >= 2 {
         println!("{:?}", config);
     }
 
@@ -144,6 +127,7 @@ fn build_graph(edges: Vec<(NodeId, NodeId)>) -> Graph {
     }
     graph
 }
+
 // ================================================================================================
 // Module
 // ================================================================================================
@@ -155,3 +139,25 @@ fn re_mocd(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(fitness, m)?)?;
     Ok(())
 }
+
+/* ================================================================================================
+// Deprecated
+// ================================================================================================
+
+/// Performs community detection on a graph from an edge list file
+#[pyfunction(name = "from_file")]
+#[pyo3(signature = (file_path))]
+fn from_file(file_path: String) -> PyResult<BTreeMap<i32, i32>> {
+    let config = AlgorithmConfig::parse(&vec!["--library-".to_string(), file_path]);
+    if config.debug {
+        println!("[Detection]: Config: {:?}", config);
+    }
+
+    let graph = Graph::from_edgelist(Path::new(&config.file_path))?;
+    let (communities, _, _) = algorithms::pesa_ii(&graph, config);
+
+    Ok(communities)
+}
+
+
+*/
