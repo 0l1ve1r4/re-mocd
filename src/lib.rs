@@ -54,10 +54,10 @@ fn from_file(file_path: String) -> PyResult<BTreeMap<i32, i32>> {
 /// # Returns
 /// - dict[int, int]: Mapping of node IDs to their detected community IDs
 #[pyfunction(name = "pesa_ii")]
-#[pyo3(signature = (graph, multi_level = false, debug = false))]
-fn pesa_ii(py: Python<'_>, graph: &Bound<'_, PyAny>, multi_level: bool, debug: bool) -> PyResult<BTreeMap<i32, i32>> {
+#[pyo3(signature = (graph, debug = false))]
+fn pesa_ii(py: Python<'_>, graph: &Bound<'_, PyAny>, debug: bool) -> PyResult<BTreeMap<i32, i32>> {
     let edges = get_edges(graph)?;
-    let config = AlgorithmConfig::lib_args(debug, multi_level);
+    let config = AlgorithmConfig::lib_args(debug, false);
 
     if config.debug {
         println!("{:?}", config);
@@ -72,11 +72,11 @@ fn pesa_ii(py: Python<'_>, graph: &Bound<'_, PyAny>, multi_level: bool, debug: b
 }
 
 #[pyfunction(name = "nsga_ii")]
-#[pyo3(signature = (graph, multi_level = false, debug = false))]
-fn nsga_ii(py: Python<'_>, graph: &Bound<'_, PyAny>, multi_level: bool, debug: bool) -> PyResult<BTreeMap<i32, i32>> {
+#[pyo3(signature = (graph, debug = false))]
+fn nsga_ii(py: Python<'_>, graph: &Bound<'_, PyAny>, debug: bool) -> PyResult<BTreeMap<i32, i32>> {
     let edges = get_edges(graph)?;
-    let config = AlgorithmConfig::lib_args(debug, multi_level);
-
+    let config = AlgorithmConfig::lib_args(debug, false);
+    
     if config.debug {
         println!("{:?}", config);
     }

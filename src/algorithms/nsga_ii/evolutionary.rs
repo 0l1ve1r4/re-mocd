@@ -1,5 +1,5 @@
-//! algorithms/pesa_ii/evolutionary.rs
-//! Implements the first phase of the algorithm (Genetic algorithm)
+//! algorithms/nsga_ii/evolutionary.rs
+//! Implements the Non-Dominated Sorting Genetic Algorithm 2 (NSGA-II) to community detection
 //! This Source Code Form is subject to the terms of The GNU General Public License v3.0
 //! Copyright 2024 - Guilherme Santos. If a copy of the MPL was not distributed with this
 //! file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
@@ -25,7 +25,7 @@ pub struct Solution {
 }
 
 impl Solution {
-    // Add default implementation for new field
+    #[allow(dead_code)]
     fn new(partition: Partition, objectives: Vec<f64>) -> Self {
         Solution {
             partition,
@@ -38,19 +38,19 @@ impl Solution {
         let mut at_least_one_better = false;
         
         for i in 0..self.objectives.len() {
-            if self.objectives[i] > other.objectives[i] {
+            // For maximization: check if self is LOWER than other
+            if self.objectives[i] < other.objectives[i] {
                 return false;
             }
-            if self.objectives[i] < other.objectives[i] {
+            // For maximization: check if self is HIGHER than other
+            if self.objectives[i] > other.objectives[i] {
                 at_least_one_better = true;
             }
         }
         
         at_least_one_better
     }
-
 }
-
 
 pub fn evolutionary_phase(
     graph: &Graph,
@@ -98,9 +98,15 @@ pub fn evolutionary_phase(
         let metrics = get_fitness(graph, partition, degrees, true);
         solutions.push(Solution {
             partition: partition.clone(),
-            objectives: vec![metrics.inter, metrics.intra],
+            objectives: vec![metrics.modularity, metrics.inter, metrics.intra],
             crowding_distance: 0.0,
         });
+    }
+
+    if args.debug {
+        println!("[evolutionary_phase]: Evaluated initial population. Solution count: {}", solutions.len());
+        println!("[evolutionary_phase]: First solution objectives: {:?}", 
+                 solutions.first().map(|s| s.objectives.clone()).unwrap_or_default());
     }
 
     // Main evolutionary loop
@@ -111,6 +117,10 @@ pub fn evolutionary_phase(
             break;
         }
 
+        if args.debug {
+            println!("[evolutionary_phase]: Generation {}, solution count: {}", generation, solutions.len());
+        }
+
         // NSGA-II: Perform non-dominated sorting
         let fronts = fast_non_dominated_sort(&solutions);
         
@@ -119,73 +129,142 @@ pub fn evolutionary_phase(
             break;
         }
 
+        if args.debug {
+            println!("[evolutionary_phase]: Non-dominated sorting created {} fronts", fronts.len());
+            for (i, front) in fronts.iter().enumerate() {
+                println!("[evolutionary_phase]: Front {} has {} solutions", i, front.len());
+            }
+        }
+
         // Calculate crowding distance for each front
         let mut ranked_solutions: Vec<Solution> = Vec::new();
-        for front in &fronts {
-            let mut front_solutions: Vec<Solution> = front.iter()
-                .map(|&idx| solutions[idx].clone())
-                .collect();
+        for (front_idx, front) in fronts.iter().enumerate() {
+            if args.debug {
+                println!("[evolutionary_phase]: Processing front {} with {} solutions", front_idx, front.len());
+            }
+            
+            let mut front_solutions: Vec<Solution> = Vec::new();
+            for &idx in front {
+                if idx < solutions.len() {
+                    front_solutions.push(solutions[idx].clone());
+                } else {
+                    println!("[evolutionary_phase]: ERROR: Invalid solution index {} (max: {})", 
+                             idx, solutions.len() - 1);
+                    // Skip this invalid index
+                    continue;
+                }
+            }
+            
+            if args.debug {
+                println!("[evolutionary_phase]: Calculating crowding distance for front {}, {} solutions", 
+                         front_idx, front_solutions.len());
+            }
             
             // Calculate crowding distance for this front
-            calculate_crowding_distance(&mut front_solutions);
+            calculate_crowding_distance(&mut front_solutions, args);
             
             // Add solutions from this front to the ranked list
             ranked_solutions.extend(front_solutions);
         }
 
+        if args.debug {
+            println!("[evolutionary_phase]: Ranked solutions: {}", ranked_solutions.len());
+        }
+
         // Select the best solutions based on rank and crowding distance
-        ranked_solutions.sort_by(|a, b| {
-            let a_rank = fronts.iter().position(|front| front.contains(&solutions.iter().position(|s| s == a).unwrap())).unwrap();
-            let b_rank = fronts.iter().position(|front| front.contains(&solutions.iter().position(|s| s == b).unwrap())).unwrap();
-            
-            match a_rank.cmp(&b_rank) {
-                std::cmp::Ordering::Equal => b.crowding_distance.partial_cmp(&a.crowding_distance).unwrap(),
-                other => other,
-            }
-        });
+        if ranked_solutions.len() > 1 {
+            ranked_solutions.sort_by(|a, b| {
+                let a_rank = find_solution_rank(&solutions, a, &fronts);
+                let b_rank = find_solution_rank(&solutions, b, &fronts);
+                
+                if args.debug && (a_rank.is_none() || b_rank.is_none()) {
+                    println!("[evolutionary_phase]: WARNING: Could not find rank for one or more solutions");
+                }
+                
+                let a_rank = a_rank.unwrap_or(usize::MAX);
+                let b_rank = b_rank.unwrap_or(usize::MAX);
+                
+                match a_rank.cmp(&b_rank) {
+                    std::cmp::Ordering::Equal => b.crowding_distance.partial_cmp(&a.crowding_distance)
+                        .unwrap_or(std::cmp::Ordering::Equal),
+                    other => other,
+                }
+            });
+        }
 
         // Truncate to population size
         if ranked_solutions.len() > args.pop_size {
+            if args.debug {
+                println!("[evolutionary_phase]: Truncating ranked solutions from {} to {}", 
+                         ranked_solutions.len(), args.pop_size);
+            }
             ranked_solutions.truncate(args.pop_size);
         }
 
         // Update archive with first Pareto front
-        if !fronts.is_empty() {
+        if !fronts.is_empty() && !fronts[0].is_empty() {
             for &idx in &fronts[0] {
-                let solution = solutions[idx].clone();
-                
-                // Update the archive using non-dominated solutions
-                if !archive.iter().any(|archived| archived.dominates(&solution)) {
-                    archive.retain(|archived| !solution.dominates(archived));
-                    archive.push(solution);
+                if idx < solutions.len() {
+                    let solution = solutions[idx].clone();
+                    
+                    // Update the archive using non-dominated solutions
+                    if !archive.iter().any(|archived| archived.dominates(&solution)) {
+                        archive.retain(|archived| !solution.dominates(archived));
+                        archive.push(solution);
+                    }
+                } else {
+                    println!("[evolutionary_phase]: ERROR: Invalid solution index {} when updating archive", idx);
                 }
+            }
+            
+            if args.debug {
+                println!("[evolutionary_phase]: Updated archive, now contains {} solutions", archive.len());
             }
         }
 
         // Limit archive size if needed
         if archive.len() > MAX_ARCHIVE_SIZE {
             // Sort by crowding distance and keep the most diverse solutions
-            calculate_crowding_distance(&mut archive);
-            archive.sort_by(|a, b| b.crowding_distance.partial_cmp(&a.crowding_distance).unwrap());
+            if args.debug {
+                println!("[evolutionary_phase]: Archive exceeds max size ({}), calculating crowding distances", 
+                         MAX_ARCHIVE_SIZE);
+            }
+            calculate_crowding_distance(&mut archive, args);
+            archive.sort_by(|a, b| b.crowding_distance.partial_cmp(&a.crowding_distance)
+                .unwrap_or(std::cmp::Ordering::Equal));
             archive.truncate(MAX_ARCHIVE_SIZE);
         }
 
-        // Safely compute best fitness
-        let best_fitness = archive
-            .iter()
-            .map(|s| 1.0 - s.objectives[0] - s.objectives[1])
-            .max_by(|a, b| a.partial_cmp(b).unwrap())
-            .unwrap_or(f64::NEG_INFINITY);
+        // Safely compute best fitness - using modularity as the primary objective for maximization
+        let best_fitness = if !archive.is_empty() {
+            archive
+                .iter()
+                .map(|s| s.objectives[0]) // Use modularity as the primary fitness measure
+                .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                .unwrap_or(f64::NEG_INFINITY)
+        } else {
+            f64::NEG_INFINITY
+        };
 
         best_fitness_history.push(best_fitness);
 
         // Generate new population through selection, crossover, and mutation
         let mut offspring = Vec::with_capacity(args.pop_size);
         
+        if args.debug {
+            println!("[evolutionary_phase]: Generating offspring population");
+        }
+        
+        // Safety check for tournament selection
+        if ranked_solutions.is_empty() {
+            println!("[evolutionary_phase]: ERROR: Cannot perform selection with empty population");
+            break;
+        }
+        
         while offspring.len() < args.pop_size {
             // Selection: Tournament selection based on rank and crowding distance
-            let parent1 = tournament_selection(&ranked_solutions, 2);
-            let parent2 = tournament_selection(&ranked_solutions, 2);
+            let parent1 = safe_tournament_selection(&ranked_solutions, 2);
+            let parent2 = safe_tournament_selection(&ranked_solutions, 2);
             
             let mut child = crossover(&parent1.partition, &parent2.partition, args.cross_rate);
             mutation(&mut child, graph, args.mut_rate);
@@ -201,7 +280,7 @@ pub fn evolutionary_phase(
             let metrics = get_fitness(graph, partition, degrees, true);
             solutions.push(Solution {
                 partition: partition.clone(),
-                objectives: vec![metrics.inter, metrics.intra],
+                objectives: vec![metrics.modularity, metrics.inter, metrics.intra],
                 crowding_distance: 0.0, // Reset for next iteration
             });
         }
@@ -228,10 +307,25 @@ pub fn evolutionary_phase(
 
     // Return empty results if archive is empty
     if archive.is_empty() {
+        if args.debug {
+            println!("[evolutionary_phase]: WARNING: Empty archive at end of evolution");
+        }
         return (Vec::new(), best_fitness_history);
     }
 
     (archive, best_fitness_history)
+}
+
+// Helper function to find a solution's rank
+fn find_solution_rank(solutions: &[Solution], solution: &Solution, fronts: &[Vec<usize>]) -> Option<usize> {
+    for (front_idx, front) in fronts.iter().enumerate() {
+        for &sol_idx in front {
+            if sol_idx < solutions.len() && solutions[sol_idx] == *solution {
+                return Some(front_idx);
+            }
+        }
+    }
+    None
 }
 
 // Helper functions for NSGA-II
@@ -285,6 +379,8 @@ fn fast_non_dominated_sort(solutions: &[Solution]) -> Vec<Vec<usize>> {
         front_index += 1;
         if !next_front.is_empty() {
             fronts.push(next_front);
+        } else {
+            break; // Exit the loop if no more fronts can be formed
         }
     }
     
@@ -292,13 +388,23 @@ fn fast_non_dominated_sort(solutions: &[Solution]) -> Vec<Vec<usize>> {
 }
 
 // Calculate crowding distance for a set of solutions
-fn calculate_crowding_distance(solutions: &mut Vec<Solution>) {
+fn calculate_crowding_distance(solutions: &mut Vec<Solution>, args: &AGArgs) {
     let n = solutions.len();
+    
+    if args.debug {
+        println!("[calculate_crowding_distance]: Processing {} solutions", n);
+    }
+    
     if n <= 2 {
         // For very small sets, assign maximum crowding distance
         for solution in solutions.iter_mut() {
             solution.crowding_distance = f64::INFINITY;
         }
+        
+        if args.debug {
+            println!("[calculate_crowding_distance]: Small solution set ({}), assigned infinite crowding distance", n);
+        }
+        
         return;
     }
     
@@ -308,40 +414,108 @@ fn calculate_crowding_distance(solutions: &mut Vec<Solution>) {
     }
     
     // For each objective
-    let num_objectives = solutions[0].objectives.len();
+    let num_objectives = if let Some(first) = solutions.first() {
+        first.objectives.len()
+    } else {
+        if args.debug {
+            println!("[calculate_crowding_distance]: WARNING: Empty solution vector");
+        }
+        return;
+    };
+    
+    if args.debug {
+        println!("[calculate_crowding_distance]: Processing {} objectives", num_objectives);
+    }
+    
     for m in 0..num_objectives {
+        if args.debug {
+            println!("[calculate_crowding_distance]: Processing objective {}", m);
+        }
+        
         // Sort by current objective
-        solutions.sort_by(|a, b| a.objectives[m].partial_cmp(&b.objectives[m]).unwrap());
+        solutions.sort_by(|a, b| {
+            if m < a.objectives.len() && m < b.objectives.len() {
+                a.objectives[m].partial_cmp(&b.objectives[m]).unwrap_or(std::cmp::Ordering::Equal)
+            } else {
+                if args.debug {
+                    println!("[calculate_crowding_distance]: ERROR: Objective index {} out of bounds (sizes: {}, {})",
+                             m, a.objectives.len(), b.objectives.len());
+                }
+                std::cmp::Ordering::Equal
+            }
+        });
         
         // Set boundary points to infinity
-        solutions[0].crowding_distance = f64::INFINITY;
-        solutions[n - 1].crowding_distance = f64::INFINITY;
+        if !solutions.is_empty() {
+            solutions[0].crowding_distance = f64::INFINITY;
+            
+            if n > 1 {
+                solutions[n - 1].crowding_distance = f64::INFINITY;
+            }
+        }
         
         // Calculate crowding distance for intermediate points
-        let obj_range = solutions[n-1].objectives[m] - solutions[0].objectives[m];
-        if obj_range > 1e-10 { // Avoid division by zero
-            for i in 1..n-1 {
-                solutions[i].crowding_distance += (solutions[i+1].objectives[m] - solutions[i-1].objectives[m]) / obj_range;
+        if n > 2 && m < solutions[0].objectives.len() && m < solutions[n-1].objectives.len() {
+            let obj_range = solutions[n-1].objectives[m] - solutions[0].objectives[m];
+            
+            if args.debug {
+                println!("[calculate_crowding_distance]: Objective {} range: {}", m, obj_range);
+            }
+            
+            if obj_range > 1e-10 { // Avoid division by zero
+                for i in 1..n-1 {
+                    if m < solutions[i-1].objectives.len() && 
+                       m < solutions[i].objectives.len() && 
+                       m < solutions[i+1].objectives.len() {
+                        
+                        solutions[i].crowding_distance += 
+                            (solutions[i+1].objectives[m] - solutions[i-1].objectives[m]) / obj_range;
+                        
+                    } else {
+                        if args.debug {
+                            println!("[calculate_crowding_distance]: ERROR: Index out of bounds at solution {}", i);
+                        }
+                    }
+                }
+            } else if args.debug {
+                println!("[calculate_crowding_distance]: Objective {} has zero range, skipping", m);
             }
         }
     }
+    
+    if args.debug {
+        println!("[calculate_crowding_distance]: Crowding distance calculation complete");
+    }
 }
 
-// Tournament selection based on rank and crowding distance
-fn tournament_selection(ranked_solutions: &[Solution], tournament_size: usize) -> &Solution {
+// A safer tournament selection implementation
+fn safe_tournament_selection(ranked_solutions: &[Solution], tournament_size: usize) -> &Solution {
     let n = ranked_solutions.len();
-    let mut best_idx = rand::random::<usize>() % n;
     
-    for _ in 1..tournament_size {
-        let idx = rand::random::<usize>() % n;
-        let current = &ranked_solutions[idx];
-        let best = &ranked_solutions[best_idx];
-        
-        // Compare based on rank, then crowding distance
-        let current_rank = current.objectives[0]; // assuming first objective is rank
-        let best_rank = best.objectives[0];
-        
-        if current_rank < best_rank || (current_rank == best_rank && current.crowding_distance > best.crowding_distance) {
+    // Handle edge cases
+    if n == 0 {
+        panic!("[safe_tournament_selection]: Empty solution set");
+    }
+    
+    if n == 1 || tournament_size <= 1 {
+        return &ranked_solutions[0];
+    }
+    
+    // Generate random indices for the tournament
+    let mut rng = thread_rng();
+    let mut indices: Vec<usize> = (0..n).collect();
+    indices.shuffle(&mut rng);
+    
+    // Take at most tournament_size or n, whichever is smaller
+    let actual_tournament_size = tournament_size.min(n);
+    let tournament_indices = &indices[0..actual_tournament_size];
+    
+    // Find the best solution in the tournament
+    let mut best_idx = tournament_indices[0];
+    for &idx in &tournament_indices[1..] {
+        // In NSGA-II, solutions are already ranked
+        // If the crowding distance of the current solution is greater, select it
+        if ranked_solutions[idx].crowding_distance > ranked_solutions[best_idx].crowding_distance {
             best_idx = idx;
         }
     }

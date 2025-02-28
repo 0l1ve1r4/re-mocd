@@ -7,18 +7,16 @@ use std::collections::HashMap;
 use std::cmp::Ordering;
 
 pub fn nsga_ii(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
-    // Precompute degrees (or any other helper information)
-    let degrees: HashMap<i32, usize, FxBuildHasher> = graph.precompute_degress();
+    if args.debug {
+        println!("[algorithms/nsga_ii/algorithm.rs]: Starting..")
+    }
 
-    // Phase 1: Run the evolutionary algorithm to get the Pareto frontier and fitness history.
+    let degrees: HashMap<i32, usize, FxBuildHasher> = graph.precompute_degress();
     let (final_solutions, best_fitness_history) = evolutionary_phase(graph, &args, &degrees);
 
-    // Select the best solution.
-    // Note: Since NSGA-II is multiobjective, there is no inherent single "best" solution.
-    // Here, we choose the one with the lowest first objective value.
     let best_solution = final_solutions
         .into_iter()
-        .min_by(|a, b| {
+        .max_by(|a, b| {
             a.objectives[0]
                 .partial_cmp(&b.objectives[0])
                 .unwrap_or(Ordering::Equal)
@@ -26,8 +24,8 @@ pub fn nsga_ii(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
         .expect("No solution found");
 
     (
-        best_solution.partition.clone(), // Return the partition (e.g., a Vec of size 64)
-        best_fitness_history,              // Return the fitness history vector
-        best_solution.objectives[0],       // Return the best solution's first objective value
+        best_solution.partition.clone(),
+        best_fitness_history,
+        best_solution.objectives[0],
     )
 }

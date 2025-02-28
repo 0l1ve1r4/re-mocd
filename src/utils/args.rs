@@ -42,7 +42,6 @@ impl AGArgs {
         }
     }
 
-    #[allow(dead_code)]
     pub fn lib_args(verbose: bool, multi_level: bool) -> Self {
         AGArgs {
             file_path: "".to_string(),
