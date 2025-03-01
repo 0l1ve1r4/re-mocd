@@ -1,4 +1,5 @@
-const NUM_RANDOM_NETWORKS: usize = 1;
+const NUM_RANDOM_NETWORKS: usize = 0;
+const RANDOM_NETWORKS_MAX_GENS: usize = 20;
 
 use crate::graph::{self, Graph, Partition};
 use crate::utils::args::AGArgs;
@@ -56,20 +57,31 @@ fn generate_random_networks(original: &Graph, num_networks: usize) -> Vec<Graph>
         .collect()
 }
 
-/// Main run function that creates both the real and random fronts, then
-/// selects the best solution via the chosen criterion.
-pub fn pesa_ii(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
+pub fn pesa_ii_maxq(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
     let degrees: HashMap<i32, usize, FxBuildHasher> = graph.precompute_degress();
 
-    // Phase 1: Evolutionary algorithm returns the Pareto frontier for the real network
+    // Phase 1: Evolutionary algorithm returns the Pareto frontier
     let (archive, best_fitness_history) = evolutionary_phase(graph, &args, &degrees);
 
-    // Phase 2: Selection Model, best solution based on strategy
-    let best_solution = if NUM_RANDOM_NETWORKS == 0 {
-        // Use Max Q selection
-        max_q_selection(&archive)
-    } else {
-        // Generate multiple random networks and their archives
+    // Phase 2: Selection Model> max q 
+    let best_solution = max_q_selection(&archive);
+
+    (
+        best_solution.partition.clone(),
+        best_fitness_history,
+        best_solution.objectives[0],
+    )
+}
+
+pub fn pesa_ii_minimax(graph: &Graph, mut args: AGArgs) -> (Partition, Vec<f64>, f64) {
+    let degrees: HashMap<i32, usize, FxBuildHasher> = graph.precompute_degress();
+
+    // Phase 1: Evolutionary algorithm returns the Pareto frontier 
+    let (archive, best_fitness_history) = evolutionary_phase(graph, &args, &degrees);
+
+    // Phase 2: Selection Model: mini-max selection
+    let best_solution = {
+        args.num_gens = RANDOM_NETWORKS_MAX_GENS;
         let random_networks = generate_random_networks(graph, NUM_RANDOM_NETWORKS);
         let random_archives: Vec<Vec<Solution>> = random_networks
             .iter()

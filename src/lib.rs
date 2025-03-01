@@ -28,9 +28,9 @@ use utils::args::AGArgs as AlgorithmConfig;
 ///
 /// # Returns
 /// - dict[int, int]: Mapping of node IDs to their detected community IDs
-#[pyfunction(name = "pesa_ii")]
+#[pyfunction(name = "pesa_ii_minimax")]
 #[pyo3(signature = (graph, debug = 0))]
-fn pesa_ii(py: Python<'_>, graph: &Bound<'_, PyAny>, debug: i8) -> PyResult<BTreeMap<i32, i32>> {
+fn pesa_ii_minimax(py: Python<'_>, graph: &Bound<'_, PyAny>, debug: i8) -> PyResult<BTreeMap<i32, i32>> {
     let edges = get_edges(graph)?;
     let config = AlgorithmConfig::lib_args(debug);
 
@@ -40,7 +40,33 @@ fn pesa_ii(py: Python<'_>, graph: &Bound<'_, PyAny>, debug: i8) -> PyResult<BTre
 
     py.allow_threads(|| {
         let graph = build_graph(edges);
-        let (communities, _, _) = algorithms::pesa_ii(&graph, config);
+        let (communities, _, _) = algorithms::pesa_ii(&graph, config, false);
+
+        Ok(communities)
+    })
+}
+
+/// Takes a NetworkX Graph as input and performs community detection
+///
+/// # Parameters
+/// - `graph` (networkx.Graph): The graph on which to perform community detection
+/// - `debug` (i8, optional): Enable debug output. Large the num, large the debug. [d=0,1,2,3]
+///
+/// # Returns
+/// - dict[int, int]: Mapping of node IDs to their detected community IDs
+#[pyfunction(name = "pesa_ii_maxq")]
+#[pyo3(signature = (graph, debug = 0))]
+fn pesa_ii_maxq(py: Python<'_>, graph: &Bound<'_, PyAny>, debug: i8) -> PyResult<BTreeMap<i32, i32>> {
+    let edges = get_edges(graph)?;
+    let config = AlgorithmConfig::lib_args(debug);
+
+    if config.debug >= 2 {
+        println!("{:?}", config);
+    }
+
+    py.allow_threads(|| {
+        let graph = build_graph(edges);
+        let (communities, _, _) = algorithms::pesa_ii(&graph, config, true);
 
         Ok(communities)
     })
@@ -134,7 +160,9 @@ fn build_graph(edges: Vec<(NodeId, NodeId)>) -> Graph {
 
 #[pymodule]
 fn re_mocd(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(pesa_ii, m)?)?;
+    m.add_function(wrap_pyfunction!(pesa_ii_maxq, m)?)?;
+    m.add_function(wrap_pyfunction!(pesa_ii_minimax, m)?)?;
+
     m.add_function(wrap_pyfunction!(nsga_ii, m)?)?;
     m.add_function(wrap_pyfunction!(fitness, m)?)?;
     Ok(())

@@ -4,7 +4,6 @@
 //! Copyright 2024 - Guilherme Santos. If a copy of the MPL was not distributed with this
 //! file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
 
-mod evolutionary;
 mod algorithm;
 
 use crate::graph::{Graph, Partition};
@@ -13,5 +12,7 @@ use crate::utils::args::AGArgs;
 /// Main run function that creates both the real and random fronts, then
 /// selects the best solution via the chosen criterion.
 pub fn run(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
-    algorithm::nsga_ii(graph, args)
+    let partition = algorithm::detect_communities(graph, args.debug);
+
+    (partition, Vec::new(), 0.0)
 }

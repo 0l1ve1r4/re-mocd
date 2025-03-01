@@ -24,11 +24,11 @@ pub fn nsga_ii(graph: &Graph, mut args: AGArgs) -> (Partition, Vec<f64>, f64) {
     )
 }
 
-pub fn pesa_ii(graph: &Graph, mut args: AGArgs) -> (Partition, Vec<f64>, f64) {
+pub fn pesa_ii(graph: &Graph, mut args: AGArgs, max_q: bool) -> (Partition, Vec<f64>, f64) {
     args.parallelism = true;
     let (best_solution, 
         best_fitness_history, 
-        highest_modularity) = pesa_ii::run(graph, args);
+        highest_modularity) = pesa_ii::run(graph, args, max_q);
     (
         normalize_community_ids(best_solution),
         best_fitness_history,
