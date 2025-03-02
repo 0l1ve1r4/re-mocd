@@ -7,14 +7,16 @@ use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 use std::time::Instant;
 use std::cmp::Ordering;
+use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 
 // Constants for the algorithm
 const POPULATION_SIZE: usize = 100;
-const MAX_GENERATIONS: usize = 100;
+const MAX_GENERATIONS: usize = 500;
 const CROSSOVER_RATE: f64 = 0.9;
 const MUTATION_RATE: f64 = 0.1;
 const TOURNAMENT_SIZE: usize = 2;
 const ENSEMBLE_SIZE: usize = 4;
+const CONVERGENCE_THRESHOLD: usize = 50; // Number of generations with no improvement
 
 #[derive(Clone, Debug)]
 struct Individual {
@@ -22,6 +24,7 @@ struct Individual {
     objectives: Vec<f64>,
     rank: usize,
     crowding_distance: f64,
+    fitness: f64, // Pre-computed fitness to avoid recalculation
 }
 
 impl Individual {
@@ -31,10 +34,12 @@ impl Individual {
             objectives: vec![0.0, 0.0],
             rank: 0,
             crowding_distance: 0.0,
+            fitness: f64::NEG_INFINITY,
         }
     }
 
     // Check if this individual dominates another
+    #[inline(always)]
     fn dominates(&self, other: &Individual) -> bool {
         let mut at_least_one_better = false;
         
@@ -49,15 +54,24 @@ impl Individual {
         
         at_least_one_better
     }
+
+    #[inline(always)]
+    fn calculate_fitness(&mut self) {
+        self.fitness = 1.0 - self.objectives[0] - self.objectives[1];
+    }
 }
 
-// Tournament selection
+// Tournament selection with early return
+#[inline]
 fn tournament_selection<'a>(population: &'a [Individual], tournament_size: usize) -> &'a Individual {
-    let mut rng = rand::thread_rng();
-    let mut best = &population[rng.gen_range(0..population.len())];
+    let mut rng: ThreadRng = thread_rng(); 
+    let best_idx: usize = rng.gen_range(0..population.len());
+    let mut best: &Individual = &population[best_idx];
     
     for _ in 1..tournament_size {
-        let candidate = &population[rng.gen_range(0..population.len())];
+        let candidate_idx: usize = rng.gen_range(0..population.len());
+        let candidate: &Individual = &population[candidate_idx];
+        
         if candidate.rank < best.rank || 
            (candidate.rank == best.rank && candidate.crowding_distance > best.crowding_distance) {
             best = candidate;
@@ -66,57 +80,89 @@ fn tournament_selection<'a>(population: &'a [Individual], tournament_size: usize
     
     best
 }
-// Fast non-dominated sort
+
+// Fast non-dominated sort with optimized data structures and parallelism
 fn fast_non_dominated_sort(population: &mut [Individual]) {
-    // Clear previous ranks
-    for ind in population.iter_mut() {
-        ind.rank = 0;
-    }
+    use rayon::prelude::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let pop_size = population.len();
     
-    // Track domination relationships
-    let mut fronts: Vec<Vec<usize>> = vec![Vec::new()];
-    let mut dominated_by: Vec<Vec<usize>> = vec![Vec::new(); population.len()];
-    let mut domination_count: Vec<usize> = vec![0; population.len()];
+    // Preallocate fronts
+    let mut fronts: Vec<Vec<usize>> = Vec::with_capacity(pop_size / 2);
+    fronts.push(Vec::with_capacity(pop_size / 2));
     
-    // Determine domination relationships
-    for i in 0..population.len() {
-        for j in 0..population.len() {
-            if i == j {
-                continue;
+    // Store dominated indices in a contiguous buffer with ranges
+    let mut dominated_data = Vec::new();
+    let mut dominated_indices = Vec::with_capacity(pop_size);
+    
+    // Use atomic counters for parallel front processing
+    let domination_count: Vec<AtomicUsize> = (0..pop_size)
+        .map(|_| AtomicUsize::new(0))
+        .collect();
+    
+    // Parallel computation of domination relationships
+    let domination_relations: Vec<_> = (0..pop_size)
+        .into_par_iter()
+        .map(|i| {
+            let mut dominated = Vec::with_capacity(20); // Increased initial capacity
+            let mut count = 0;
+            
+            for j in 0..pop_size {
+                if i == j { continue; }
+                
+                if population[i].dominates(&population[j]) {
+                    dominated.push(j);
+                } else if population[j].dominates(&population[i]) {
+                    count += 1;
+                }
             }
             
-            if population[i].dominates(&population[j]) {
-                dominated_by[i].push(j);
-            } else if population[j].dominates(&population[i]) {
-                domination_count[i] += 1;
-            }
-        }
+            (dominated, count)
+        })
+        .collect();
+    
+    // Build contiguous dominated data and indices
+    for (i, (dominated, count)) in domination_relations.into_iter().enumerate() {
+        let start = dominated_data.len();
+        dominated_data.extend(dominated);
+        dominated_indices.push(start..dominated_data.len());
+        domination_count[i].store(count, Ordering::Relaxed);
         
-        // First front
-        if domination_count[i] == 0 {
+        if count == 0 {
             population[i].rank = 1;
             fronts[0].push(i);
         }
     }
     
-    // Find subsequent fronts
+    // Process fronts in parallel using atomic operations
     let mut front_idx = 0;
     while !fronts[front_idx].is_empty() {
-        let current_front = fronts[front_idx].clone();
-        let mut next_front = Vec::new();
-        
-        for &i in &current_front {
-            for &j in &dominated_by[i] {
-                domination_count[j] -= 1;
-                if domination_count[j] == 0 {
-                    population[j].rank = front_idx + 2;
-                    next_front.push(j);
+        let current_front = &fronts[front_idx];
+        let next_front: Vec<usize> = current_front
+            .par_iter()
+            .fold(Vec::new, |mut acc, &i| {
+                let range = &dominated_indices[i];
+                for &j in &dominated_data[range.start..range.end] {
+                    // Atomic decrement and check for transition to 0
+                    let prev = domination_count[j].fetch_sub(1, Ordering::Relaxed);
+                    if prev == 1 {
+                        acc.push(j);
+                    }
                 }
-            }
-        }
+                acc
+            })
+            .reduce(Vec::new, |mut a, mut b| {
+                a.append(&mut b);
+                a
+            });
         
         front_idx += 1;
         if !next_front.is_empty() {
+            // Assign ranks and store the next front
+            for &j in &next_front {
+                population[j].rank = front_idx + 1;
+            }
             fronts.push(next_front);
         } else {
             break;
@@ -124,7 +170,7 @@ fn fast_non_dominated_sort(population: &mut [Individual]) {
     }
 }
 
-// Calculate crowding distance
+// Calculate crowding distance with optimized memory usage
 fn calculate_crowding_distance(population: &mut [Individual]) {
     if population.is_empty() {
         return;
@@ -132,15 +178,18 @@ fn calculate_crowding_distance(population: &mut [Individual]) {
     
     let n_obj = population[0].objectives.len();
     
-    // Initialize crowding distances
+    // Reset crowding distances
     for ind in population.iter_mut() {
         ind.crowding_distance = 0.0;
     }
     
-    // Group individuals by rank
-    let mut rank_groups: HashMap<usize, Vec<usize>> = HashMap::default();
+    // Group individuals by rank - preallocate with reasonable size
+    let mut rank_groups: HashMap<usize, Vec<usize>> = HashMap::with_capacity_and_hasher(10, Default::default());
     for (idx, ind) in population.iter().enumerate() {
-        rank_groups.entry(ind.rank).or_insert_with(Vec::new).push(idx);
+        rank_groups
+            .entry(ind.rank)
+            .or_insert_with(|| Vec::with_capacity(population.len() / 4))
+            .push(idx);
     }
     
     // Calculate crowding distance for each rank
@@ -156,7 +205,7 @@ fn calculate_crowding_distance(population: &mut [Individual]) {
         for obj_idx in 0..n_obj {
             // Sort indices by objective value
             let mut sorted = indices.clone();
-            sorted.sort_by(|&a, &b| {
+            sorted.sort_unstable_by(|&a, &b| {
                 population[a].objectives[obj_idx]
                     .partial_cmp(&population[b].objectives[obj_idx])
                     .unwrap_or(Ordering::Equal)
@@ -171,18 +220,19 @@ fn calculate_crowding_distance(population: &mut [Individual]) {
             let obj_max = population[sorted[sorted.len() - 1]].objectives[obj_idx];
             
             if (obj_max - obj_min).abs() > 1e-10 {
+                let scale = 1.0 / (obj_max - obj_min);
                 for i in 1..sorted.len() - 1 {
                     let prev_obj = population[sorted[i - 1]].objectives[obj_idx];
                     let next_obj = population[sorted[i + 1]].objectives[obj_idx];
                     
-                    population[sorted[i]].crowding_distance += 
-                        (next_obj - prev_obj) / (obj_max - obj_min);
+                    population[sorted[i]].crowding_distance += (next_obj - prev_obj) * scale;
                 }
             }
         }
     }
 }
 
+// Create offspring with better parallelization
 fn create_offspring(
     population: &[Individual], 
     graph: &Graph,
@@ -190,162 +240,99 @@ fn create_offspring(
     mutation_rate: f64,
     tournament_size: usize
 ) -> Vec<Individual> {
-    let mut offspring = Vec::with_capacity(population.len());
+    let pop_size = population.len();
+    let mut offspring = Vec::with_capacity(pop_size);
+    let num_threads = rayon::current_num_threads();
+    let chunk_size = (pop_size + num_threads - 1) / num_threads;
     
-    while offspring.len() < population.len() {
-        // Select unique parents
-        let mut parents = Vec::with_capacity(ENSEMBLE_SIZE);
-        let mut selected_ids = HashSet::default();
-        
-        let mut i = 0;
-        while parents.len() < ENSEMBLE_SIZE {
-            let parent = tournament_selection(population, tournament_size);
-            if selected_ids.insert(parent.rank) {
-                parents.push(parent);
+    // Use atomic counter for better load balancing
+    let offspring_counter = AtomicUsize::new(0);
+    
+    let thread_offsprings: Vec<Vec<Individual>> = (0..num_threads)
+        .into_par_iter()
+        .map(|_| {
+            let mut local_rng = thread_rng();
+            let mut local_offspring = Vec::with_capacity(chunk_size);
+            
+            while offspring_counter.fetch_add(1, AtomicOrdering::Relaxed) < pop_size {
+                // Select unique parents
+                let mut parents = Vec::with_capacity(ENSEMBLE_SIZE);
+                let mut selected_ids = HashSet::with_capacity_and_hasher(ENSEMBLE_SIZE, Default::default());
+                
+                let mut attempts = 0;
+                while parents.len() < ENSEMBLE_SIZE && attempts < 50 {
+                    let parent = tournament_selection(population, tournament_size);
+                    if selected_ids.insert(parent.rank) {
+                        parents.push(parent);
+                    }
+                    attempts += 1;
+                }
+                
+                // Fill remaining slots if needed
+                while parents.len() < ENSEMBLE_SIZE {
+                    parents.push(tournament_selection(population, tournament_size));
+                }
+
+                let parent_partitions: Vec<Partition> = parents.iter()
+                    .map(|p| p.partition.clone())
+                    .collect();
+                
+                let parent_slice: &[Partition] = &parent_partitions;   
+                let should_crossover = local_rng.gen::<f64>() < crossover_rate;
+                     
+                let mut child = if should_crossover {
+                    operators::ensemble_crossover(parent_slice, 1.0)
+                } else {
+                    parent_partitions[0].clone()
+                };
+                
+                operators::mutation(&mut child, graph, mutation_rate);
+                local_offspring.push(Individual::new(child));
             }
             
-            i = i + 1;
-            if i > 110 {
-                break;
-            }
-        }
-
-        let parent_partitions: Vec<Partition> = parents.iter()
-        .map(|p| p.partition.clone())
+            local_offspring
+        })
         .collect();
     
-        let parent_slice: &[Partition] = &parent_partitions;        
-        let mut child = operators::ensemble_crossover(parent_slice, crossover_rate);
-        
-        operators::mutation(&mut child, graph, mutation_rate);
-        offspring.push(Individual::new(child));
+    // Combine results, only taking what we need
+    let mut remaining = pop_size;
+    for mut thread_offspring in thread_offsprings {
+        let to_take = remaining.min(thread_offspring.len());
+        offspring.extend(thread_offspring.drain(..to_take));
+        remaining -= to_take;
+        if remaining == 0 {
+            break;
+        }
     }
     
     offspring
 }
-// Max-Q selection criterion
-fn max_q_selection(population: &[Individual]) -> &Individual {
-    population.iter()
-        .max_by(|a, b| {
-            let fitness_a = 1.0 - a.objectives[0] - a.objectives[1];
-            let fitness_b = 1.0 - b.objectives[0] - b.objectives[1];
-            fitness_a.partial_cmp(&fitness_b).unwrap_or(Ordering::Equal)
-        })
-        .unwrap_or(&population[0])
-}
 
-fn max_min_selection<'a>(
-    real_front: &'a [Individual],
-    random_fronts: &[Vec<Individual>],
-) -> &'a Individual {
-    let mut best_index = 0;
-    let mut max_min_distance = f64::NEG_INFINITY;
-    
-    for (i, real_sol) in real_front.iter().enumerate() {
-        let mut min_distance = f64::INFINITY;
-        
-        // Find minimum distance to any solution in random fronts
-        for random_front in random_fronts {
-            for random_sol in random_front {
-                let mut dist_squared = 0.0;
-                for j in 0..real_sol.objectives.len() {
-                    let diff = real_sol.objectives[j] - random_sol.objectives[j];
-                    dist_squared += diff * diff;
-                }
-                let dist = dist_squared.sqrt();
-                min_distance = min_distance.min(dist);
-            }
-        }
-        
-        // Update best if this solution has larger minimum distance
-        if min_distance > max_min_distance {
-            max_min_distance = min_distance;
-            best_index = i;
-        }
-    }
-    
-    &real_front[best_index]
-}
 
-// Create a random network with same degree distribution
-fn generate_random_network(original: &Graph) -> Graph {
-    let mut random_graph = Graph::new();
-    
-    // Add all nodes
-    for &node in &original.nodes {
-        random_graph.nodes.insert(node);
-    }
-    
-    // Create stubs list based on node degrees
-    let mut stubs = Vec::new();
-    let degrees = original.precompute_degress();
-    
-    for (&node, &degree) in &degrees {
-        for _ in 0..degree {
-            stubs.push(node);
-        }
-    }
-    
-    // Shuffle stubs
-    let mut rng = rand::thread_rng();
-    stubs.shuffle(&mut rng);
-    
-    // Connect stubs to form edges
-    let mut edge_count = 0;
-    for i in (0..stubs.len()).step_by(2) {
-        if i + 1 < stubs.len() {
-            let src = stubs[i];
-            let dst = stubs[i + 1];
-            
-            // Avoid self-loops
-            if src != dst {
-                random_graph.add_edge(src, dst);
-                edge_count += 1;
-            }
-        }
-    }
-    
-    // Initialize adjacency lists
-    for node in &random_graph.nodes {
-        random_graph.adjacency_list.insert(*node, Vec::new());
-    }
-    
-    // Populate adjacency lists
-    for (src, dst) in &random_graph.edges {
-        random_graph.adjacency_list.get_mut(src).unwrap().push(*dst);
-        random_graph.adjacency_list.get_mut(dst).unwrap().push(*src);
-    }
-    
-    if edge_count < original.edges.len() / 2 {
-        println!("Warning: Random network has fewer edges than original: {}/{}", 
-                 edge_count, original.edges.len() / 2);
-    }
-    
-    random_graph
-}
-
-// Main NSGA-II algorithm function
+// Main NSGA-II algorithm function with max-Q selection from Pareto front
 pub fn nsga_ii(graph: &Graph, debug_level: i8) -> (Partition, Vec<f64>) {
     let start_time = Instant::now();
     
-    // Precompute node degrees
+    // Precompute node degrees once
     let degrees = graph.precompute_degress();
     
     // Generate initial population
-    let population = operators::generate_population(graph, POPULATION_SIZE);
-    let mut individuals: Vec<Individual> = population
-        .into_iter()
+    let mut individuals: Vec<Individual> = operators::generate_population(graph, POPULATION_SIZE)
+        .into_par_iter()
         .map(Individual::new)
         .collect();
     
-    // Evaluate initial population
+    // Evaluate initial population in parallel
     individuals.par_iter_mut().for_each(|ind| {
         let metrics = operators::get_fitness(graph, &ind.partition, &degrees, true);
         ind.objectives = vec![metrics.intra, metrics.inter];
+        ind.calculate_fitness();
     });
     
     // Initialize convergence tracking
-    let mut max_local= operators::ConvergenceCriteria::default();
+    let mut stagnation_counter = 0;
+    let mut best_fitness = individuals.par_iter().map(|ind| ind.fitness).max_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal)).unwrap_or(f64::NEG_INFINITY);
+    let mut prev_best_fitness = best_fitness;
     let mut best_fitness_history = Vec::with_capacity(MAX_GENERATIONS);
     
     // Main generational loop
@@ -363,10 +350,17 @@ pub fn nsga_ii(graph: &Graph, debug_level: i8) -> (Partition, Vec<f64>) {
             TOURNAMENT_SIZE
         );
         
-        // Evaluate offspring
-        for ind in &mut offspring {
+        // Evaluate offspring in parallel
+        offspring.par_iter_mut().for_each(|ind| {
             let metrics = operators::get_fitness(graph, &ind.partition, &degrees, true);
             ind.objectives = vec![metrics.intra, metrics.inter];
+            ind.calculate_fitness();
+        });
+        
+        // Reserve capacity before extending
+        let combined_size = individuals.len() + offspring.len();
+        if individuals.capacity() < combined_size {
+            individuals.reserve(combined_size - individuals.capacity());
         }
         
         // Combine populations
@@ -376,8 +370,8 @@ pub fn nsga_ii(graph: &Graph, debug_level: i8) -> (Partition, Vec<f64>) {
         fast_non_dominated_sort(&mut individuals);
         calculate_crowding_distance(&mut individuals);
         
-        // Sort by rank and crowding distance
-        individuals.sort_by(|a, b| {
+        // Sort by rank and crowding distance with unstable sort for speed
+        individuals.sort_unstable_by(|a, b| {
             a.rank.cmp(&b.rank).then_with(|| {
                 b.crowding_distance.partial_cmp(&a.crowding_distance).unwrap_or(Ordering::Equal)
             })
@@ -386,113 +380,56 @@ pub fn nsga_ii(graph: &Graph, debug_level: i8) -> (Partition, Vec<f64>) {
         // Reduce to population size
         individuals.truncate(POPULATION_SIZE);
         
-        // Track best fitness
-        let best_fitness = individuals
-            .iter()
-            .map(|ind| 1.0 - ind.objectives[0] - ind.objectives[1])
-            .fold(f64::NEG_INFINITY, f64::max);
+        // Track best fitness more efficiently
+        best_fitness = individuals.par_iter()
+            .map(|ind| ind.fitness)
+            .max_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal))
+            .unwrap_or(f64::NEG_INFINITY);
         
         best_fitness_history.push(best_fitness);
         
-        // Check for convergence
-        if max_local.has_converged(best_fitness) {
+        // Check for convergence - improved stagnation detection
+        if (best_fitness - prev_best_fitness).abs() < 1e-6 {
+            stagnation_counter += 1;
+        } else {
+            stagnation_counter = 0;
+            prev_best_fitness = best_fitness;
+        }
+        
+        if stagnation_counter >= CONVERGENCE_THRESHOLD {
             if debug_level >= 1 {
-                println!("NSGA-II converged after {} generations", generation + 1);
+                println!("NSGA-II converged after {} generations (stagnation for {} generations)", 
+                    generation + 1, stagnation_counter);
             }
             break;
         }
         
         if debug_level >= 1 && (generation % 10 == 0 || generation == MAX_GENERATIONS - 1) {
+            let first_front_size = individuals.iter().filter(|ind| ind.rank == 1).count();
             println!(
                 "NSGA-II: Gen {} | Best fitness: {:.4} | First front size: {} | Pop size: {}",
                 generation,
-                max_local.get_best_fitness(),
-                individuals.iter().filter(|ind| ind.rank == 1).count(),
+                best_fitness,
+                first_front_size,
                 individuals.len()
             );
         }
     }
     
-    // Generate random networks for model selection
-    let random_fronts = if debug_level >= 1 {
-        println!("Generating random networks for model selection...");
-        
-        let mut fronts = Vec::new();
-        for i in 0..3 {  // Generate 3 random networks
-            if debug_level >= 2 {
-                println!("Generating random network {}/3", i+1);
-            }
-            
-            let random_graph = generate_random_network(graph);
-            
-            // Run NSGA-II on random graph (with fewer generations)
-            let random_population = operators::generate_population(&random_graph, POPULATION_SIZE);
-            let mut random_individuals: Vec<Individual> = random_population
-                .into_iter()
-                .map(Individual::new)
-                .collect();
-            
-            let random_degrees = random_graph.precompute_degress();
-            
-            for ind in &mut random_individuals {
-                let metrics = operators::get_fitness(&random_graph, &ind.partition, &random_degrees, true);
-                ind.objectives = vec![metrics.intra, metrics.inter];
-            }
-            
-            // Run for fewer generations on random networks
-            for _ in 0..20 {
-                fast_non_dominated_sort(&mut random_individuals);
-                calculate_crowding_distance(&mut random_individuals);
-                
-                let mut offspring = create_offspring(
-                    &random_individuals, 
-                    &random_graph, 
-                    CROSSOVER_RATE,
-                    MUTATION_RATE,
-                    TOURNAMENT_SIZE
-                );
-                
-                for ind in &mut offspring {
-                    let metrics = operators::get_fitness(&random_graph, &ind.partition, &random_degrees, true);
-                    ind.objectives = vec![metrics.intra, metrics.inter];
-                }
-                
-                random_individuals.extend(offspring);
-                fast_non_dominated_sort(&mut random_individuals);
-                calculate_crowding_distance(&mut random_individuals);
-                
-                random_individuals.sort_by(|a, b| {
-                    a.rank.cmp(&b.rank).then_with(|| {
-                        b.crowding_distance.partial_cmp(&a.crowding_distance).unwrap_or(Ordering::Equal)
-                    })
-                });
-                
-                random_individuals.truncate(POPULATION_SIZE);
-            }
-            
-            // Keep only first front
-            random_individuals.retain(|ind| ind.rank == 1);
-            fronts.push(random_individuals);
-        }
-        
-        fronts
-    } else {
-        Vec::new()
-    };
+    // Extract Pareto front (first non-dominated front)
+    let first_front: Vec<Individual> = individuals.iter()
+        .filter(|ind| ind.rank == 1)
+        .cloned()
+        .collect();
     
-    let first_front: Vec<Individual> = individuals
-    .iter()
-    .filter(|ind| ind.rank == 1)
-    .cloned() // Requires Individual: Clone
-    .collect();
-
-    // Now you can borrow the slice from first_front
-    let best_solution = if !random_fronts.is_empty() {
-        max_min_selection(&first_front, &random_fronts)
+    // Select solution with maximum Q value from Pareto front
+    let best_solution = if !first_front.is_empty() {
+        max_q_selection(&first_front)
     } else {
+        // Fallback to best in population if no Pareto front found (shouldn't happen)
+        println!("Pareto front not found, this should'nt happen, make a issue");
         max_q_selection(&individuals)
     };
-
     
     let elapsed = start_time.elapsed();
     if debug_level >= 1 {
@@ -500,6 +437,14 @@ pub fn nsga_ii(graph: &Graph, debug_level: i8) -> (Partition, Vec<f64>) {
     }
     
     (best_solution.partition.clone(), best_fitness_history)
+}
+
+
+#[inline]
+fn max_q_selection(population: &[Individual]) -> &Individual {
+    population.iter()
+        .max_by(|a, b| a.fitness.partial_cmp(&b.fitness).unwrap_or(Ordering::Equal))
+        .expect("Empty population in max_q_selection")
 }
 
 // Main entry point

@@ -5,14 +5,12 @@
 
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/re_mocd)
 [![PyPI - Stats](https://img.shields.io/badge/More%20Info-F58025?logo=PyPi)](https://pypistats.org/packages/re_mocd)
+[![Netlify Status](https://api.netlify.com/api/v1/badges/3338fd99-1581-4db4-bf2c-76f68d313e17/deploy-status)](https://app.netlify.com/sites/remocd/deploys)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/0l1ve1r4/re-mocd/.github%2Fworkflows%2Frelease.yml)
 
 <hr>
 
 </div>
-
-> [!NOTE]  
-> **This project is in its early stages.** Performance and results may not be optimal yet.
 
 ## Overview  
 
@@ -51,7 +49,8 @@ G = nx.Graph([
 ])
 
 # Pareto envelope-based selection algorithm II (PESA-II) 
-partition = re_mocd.pesa_ii(G, debug=True)
+partition = re_mocd.pesa_ii_maxq(G, debug=True)
+partition = re_mocd.pesa_ii_minimax(G, debug=True)
 
 # Non-Dominated Sorting Genetic Algorithm 2 (NSGA-II)
 partition = re_mocd.nsga_ii(G, debug=True)
@@ -60,22 +59,6 @@ partition = re_mocd.nsga_ii(G, debug=True)
 # returned by the algorithm using:
 mod = re_mocd.fitness(G, partition)
 ```
-<!--
-
-### Examples  
-
-- [Plotting Example](tests/python/example.py)  
-- [Comparison with Other Algorithms](tests/python/main.py)  
-- [Modularity ring problem](tests/python/benchmarks/ring.py)
-- [Single file test](tests/python/benchmarks/single.py)
-
--->
-
----
-
-<center>  
-<img src="res/example.png" alt="Example Plot" width="600">  
-</center>  
 
 ---
 
