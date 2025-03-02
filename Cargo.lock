@@ -187,6 +187,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "nsga"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "009d63903333449456a219bd55a0d61e09bb11abefedaf30d7e7812480b3334d"
+dependencies = [
+ "peeking_take_while",
+ "rand 0.8.5",
+]
+
+[[package]]
 name = "num-traits"
 version = "0.2.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -214,6 +224,12 @@ dependencies = [
  "smallvec",
  "windows-targets",
 ]
+
+[[package]]
+name = "peeking_take_while"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e9ed2178b0575fff8e1b83b58ba6f75e727aafac2e1b6c795169ad3b17eb518"
 
 [[package]]
 name = "portable-atomic"
@@ -407,6 +423,7 @@ version = "0.2.3"
 dependencies = [
  "crossbeam",
  "dashmap",
+ "nsga",
  "pyo3",
  "rand 0.8.5",
  "rand_chacha 0.3.1",

@@ -1,7 +1,8 @@
-use crate::graph::{CommunityId, Graph, Partition};
-use crate::operators::*;
+use crate::graph::{Graph, Partition};
+use crate::operators;
 
 use rand::prelude::*;
+use rayon::prelude::*;
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 use std::time::Instant;
@@ -9,11 +10,11 @@ use std::cmp::Ordering;
 
 // Constants for the algorithm
 const POPULATION_SIZE: usize = 100;
-const MAX_GENERATIONS: usize = 1000;
+const MAX_GENERATIONS: usize = 100;
 const CROSSOVER_RATE: f64 = 0.9;
 const MUTATION_RATE: f64 = 0.1;
 const TOURNAMENT_SIZE: usize = 2;
-
+const ENSEMBLE_SIZE: usize = 4;
 
 #[derive(Clone, Debug)]
 struct Individual {
@@ -50,62 +51,6 @@ impl Individual {
     }
 }
 
-// Convergence criteria tracking
-#[derive(Default)]
-pub struct ConvergenceCriteria {
-    best_fitness: f64,
-    unchanged_count: usize,
-    threshold: usize,
-}
-
-impl ConvergenceCriteria {
-    pub fn new(threshold: usize) -> Self {
-        Self {
-            best_fitness: f64::NEG_INFINITY,
-            unchanged_count: 0,
-            threshold,
-        }
-    }
-
-    pub fn has_converged(&mut self, fitness: f64) -> bool {
-        let epsilon = 1e-6;
-        let improved = fitness > self.best_fitness + epsilon;
-        let same = (fitness - self.best_fitness).abs() < epsilon;
-
-        if improved {
-            self.best_fitness = fitness;
-            self.unchanged_count = 0;
-            false
-        } else if same {
-            self.unchanged_count += 1;
-            self.unchanged_count >= self.threshold
-        } else {
-            self.unchanged_count = 0;
-            false
-        }
-    }
-}
-
-// Generate initial random population
-fn generate_population(graph: &Graph, size: usize) -> Vec<Partition> {
-    let mut rng = rand::thread_rng();
-    let mut population = Vec::with_capacity(size);
-
-    for _ in 0..size {
-        let mut partition = Partition::new();
-        let community_count = rng.gen_range(2..=graph.nodes.len().min(20));
-        
-        for &node in &graph.nodes {
-            let community = rng.gen_range(0..community_count) as CommunityId;
-            partition.insert(node, community);
-        }
-        
-        population.push(partition);
-    }
-
-    population
-}
-
 // Tournament selection
 fn tournament_selection<'a>(population: &'a [Individual], tournament_size: usize) -> &'a Individual {
     let mut rng = rand::thread_rng();
@@ -121,73 +66,6 @@ fn tournament_selection<'a>(population: &'a [Individual], tournament_size: usize
     
     best
 }
-
-// Crossover operator
-fn crossover(parent1: &Partition, parent2: &Partition, rate: f64) -> Partition {
-    let mut rng = rand::thread_rng();
-    
-    if rng.gen::<f64>() > rate {
-        return parent1.clone();
-    }
-    
-    let mut child = Partition::new();
-    let mut community_mapping1: HashMap<CommunityId, CommunityId> = HashMap::default();
-    let mut community_mapping2: HashMap<CommunityId, CommunityId> = HashMap::default();
-    let mut next_community_id = 0;
-    
-    // For each node, randomly choose from which parent to inherit
-    for &node in parent1.keys() {
-        if rng.gen::<bool>() {
-            // Inherit from parent1
-            let parent_comm = *parent1.get(&node).unwrap();
-            let mapped_comm = *community_mapping1.entry(parent_comm).or_insert_with(|| {
-                let id = next_community_id;
-                next_community_id += 1;
-                id
-            });
-            child.insert(node, mapped_comm);
-        } else {
-            // Inherit from parent2
-            let parent_comm = *parent2.get(&node).unwrap();
-            let mapped_comm = *community_mapping2.entry(parent_comm).or_insert_with(|| {
-                let id = next_community_id;
-                next_community_id += 1;
-                id
-            });
-            child.insert(node, mapped_comm);
-        }
-    }
-    
-    child
-}
-
-// Mutation operator
-fn mutation(partition: &mut Partition, graph: &Graph, rate: f64) {
-    let mut rng = rand::thread_rng();
-    
-    // Count the number of communities
-    let mut communities: HashSet<CommunityId> = HashSet::default();
-    for &comm in partition.values() {
-        communities.insert(comm);
-    }
-    let community_count = communities.len();
-    
-    // Mutate nodes with probability based on rate
-    for &node in &graph.nodes {
-        if rng.gen::<f64>() < rate {
-            let community = if rng.gen::<bool>() || community_count < 2 {
-                // Assign to an existing random community
-                *communities.iter().nth(rng.gen_range(0..communities.len())).unwrap()
-            } else {
-                // Create a new community
-                community_count as CommunityId
-            };
-            
-            partition.insert(node, community);
-        }
-    }
-}
-
 // Fast non-dominated sort
 fn fast_non_dominated_sort(population: &mut [Individual]) {
     // Clear previous ranks
@@ -305,7 +183,6 @@ fn calculate_crowding_distance(population: &mut [Individual]) {
     }
 }
 
-// Generate offspring population
 fn create_offspring(
     population: &[Individual], 
     graph: &Graph,
@@ -316,26 +193,36 @@ fn create_offspring(
     let mut offspring = Vec::with_capacity(population.len());
     
     while offspring.len() < population.len() {
-        let parent1 = tournament_selection(population, tournament_size);
-        let parent2 = tournament_selection(population, tournament_size);
+        // Select unique parents
+        let mut parents = Vec::with_capacity(ENSEMBLE_SIZE);
+        let mut selected_ids = HashSet::default();
         
-        let mut child = crossover(&parent1.partition, &parent2.partition, crossover_rate);
-        
-        mutation(&mut child, graph, mutation_rate);
-        
-        offspring.push(Individual::new(child));
-        
-        // If needed, add another child to meet population size
-        if offspring.len() < population.len() {
-            let mut child2 = crossover(&parent2.partition, &parent1.partition, crossover_rate);
-            mutation(&mut child2, graph, mutation_rate);
-            offspring.push(Individual::new(child2));
+        let mut i = 0;
+        while parents.len() < ENSEMBLE_SIZE {
+            let parent = tournament_selection(population, tournament_size);
+            if selected_ids.insert(parent.rank) {
+                parents.push(parent);
+            }
+            
+            i = i + 1;
+            if i > 110 {
+                break;
+            }
         }
+
+        let parent_partitions: Vec<Partition> = parents.iter()
+        .map(|p| p.partition.clone())
+        .collect();
+    
+        let parent_slice: &[Partition] = &parent_partitions;        
+        let mut child = operators::ensemble_crossover(parent_slice, crossover_rate);
+        
+        operators::mutation(&mut child, graph, mutation_rate);
+        offspring.push(Individual::new(child));
     }
     
     offspring
 }
-
 // Max-Q selection criterion
 fn max_q_selection(population: &[Individual]) -> &Individual {
     population.iter()
@@ -445,20 +332,20 @@ pub fn nsga_ii(graph: &Graph, debug_level: i8) -> (Partition, Vec<f64>) {
     let degrees = graph.precompute_degress();
     
     // Generate initial population
-    let population = generate_population(graph, POPULATION_SIZE);
+    let population = operators::generate_population(graph, POPULATION_SIZE);
     let mut individuals: Vec<Individual> = population
         .into_iter()
         .map(Individual::new)
         .collect();
     
     // Evaluate initial population
-    for ind in &mut individuals {
-        let metrics = get_fitness(graph, &ind.partition, &degrees, true);
+    individuals.par_iter_mut().for_each(|ind| {
+        let metrics = operators::get_fitness(graph, &ind.partition, &degrees, true);
         ind.objectives = vec![metrics.intra, metrics.inter];
-    }
+    });
     
     // Initialize convergence tracking
-    let mut convergence = ConvergenceCriteria::new(10);
+    let mut max_local= operators::ConvergenceCriteria::default();
     let mut best_fitness_history = Vec::with_capacity(MAX_GENERATIONS);
     
     // Main generational loop
@@ -478,7 +365,7 @@ pub fn nsga_ii(graph: &Graph, debug_level: i8) -> (Partition, Vec<f64>) {
         
         // Evaluate offspring
         for ind in &mut offspring {
-            let metrics = get_fitness(graph, &ind.partition, &degrees, true);
+            let metrics = operators::get_fitness(graph, &ind.partition, &degrees, true);
             ind.objectives = vec![metrics.intra, metrics.inter];
         }
         
@@ -508,7 +395,7 @@ pub fn nsga_ii(graph: &Graph, debug_level: i8) -> (Partition, Vec<f64>) {
         best_fitness_history.push(best_fitness);
         
         // Check for convergence
-        if convergence.has_converged(best_fitness) {
+        if max_local.has_converged(best_fitness) {
             if debug_level >= 1 {
                 println!("NSGA-II converged after {} generations", generation + 1);
             }
@@ -519,7 +406,7 @@ pub fn nsga_ii(graph: &Graph, debug_level: i8) -> (Partition, Vec<f64>) {
             println!(
                 "NSGA-II: Gen {} | Best fitness: {:.4} | First front size: {} | Pop size: {}",
                 generation,
-                best_fitness,
+                max_local.get_best_fitness(),
                 individuals.iter().filter(|ind| ind.rank == 1).count(),
                 individuals.len()
             );
@@ -539,7 +426,7 @@ pub fn nsga_ii(graph: &Graph, debug_level: i8) -> (Partition, Vec<f64>) {
             let random_graph = generate_random_network(graph);
             
             // Run NSGA-II on random graph (with fewer generations)
-            let random_population = generate_population(&random_graph, POPULATION_SIZE);
+            let random_population = operators::generate_population(&random_graph, POPULATION_SIZE);
             let mut random_individuals: Vec<Individual> = random_population
                 .into_iter()
                 .map(Individual::new)
@@ -548,12 +435,12 @@ pub fn nsga_ii(graph: &Graph, debug_level: i8) -> (Partition, Vec<f64>) {
             let random_degrees = random_graph.precompute_degress();
             
             for ind in &mut random_individuals {
-                let metrics = get_fitness(&random_graph, &ind.partition, &random_degrees, true);
+                let metrics = operators::get_fitness(&random_graph, &ind.partition, &random_degrees, true);
                 ind.objectives = vec![metrics.intra, metrics.inter];
             }
             
             // Run for fewer generations on random networks
-            for _ in 0..MAX_GENERATIONS {
+            for _ in 0..20 {
                 fast_non_dominated_sort(&mut random_individuals);
                 calculate_crowding_distance(&mut random_individuals);
                 
@@ -566,7 +453,7 @@ pub fn nsga_ii(graph: &Graph, debug_level: i8) -> (Partition, Vec<f64>) {
                 );
                 
                 for ind in &mut offspring {
-                    let metrics = get_fitness(&random_graph, &ind.partition, &random_degrees, true);
+                    let metrics = operators::get_fitness(&random_graph, &ind.partition, &random_degrees, true);
                     ind.objectives = vec![metrics.intra, metrics.inter];
                 }
                 
