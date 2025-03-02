@@ -11,7 +11,7 @@ title = "Projects"
 {{< block "grid-2" >}}
 {{< column >}}
 
-# Rapid, Evolutionary, Multi-objective Community Detection
+# Rapid, Evolutionary, Multi-objective Community Detection Algorithms
 
 `re-mocd` is a rapid evolutionary **multi-objective** community detection Python library with algorithms designed to efficiently analyze and manage large-scale graphs. By leveraging genetic algorithms techniques, it reveals complex community structures within your networks.
 
