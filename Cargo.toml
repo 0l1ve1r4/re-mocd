@@ -22,13 +22,8 @@ rand = "0.8"            # random number generation.
 rayon = "1.7"           # data parallelism and multi-threading support.
 rustc-hash = { version = "2.1", default-features = true } # a fast hash map implementation.
 pyo3 = { version = "0.23.3", features = ["extension-module"] }
-serde_json = "1.0.0"    # serializing and deserializing JSON data.
-crossbeam = "0.8"
 dashmap = "6.1.0"  # For concurrent HashMap
 rand_chacha = "0.3.1"
-rand_distr = "0.5.1"
-nsga = "0.1.2"
-bitvec = "1"
 
 [package.metadata.maturin]
 name = "re_mocd"
