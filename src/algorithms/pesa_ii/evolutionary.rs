@@ -4,7 +4,7 @@
 //! Copyright 2024 - Guilherme Santos. If a copy of the MPL was not distributed with this
 //! file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
 
-use crate::algorithms::rmocd::{hypergrid, HyperBox, Solution};
+use crate::algorithms::pesa_ii::{hypergrid, HyperBox, Solution};
 use crate::operators::*;
 
 use rayon::prelude::*;
@@ -99,7 +99,7 @@ pub fn evolutionary_phase(
     }
 
     // Debug print graph information
-    if args.debug {
+    if args.debug >= 2 {
         println!(
             "[evolutionary_phase]: Starting with graph - nodes: {}, edges: {}",
             graph.nodes.len(),
@@ -116,7 +116,7 @@ pub fn evolutionary_phase(
         return (Vec::new(), Vec::new());
     }
 
-    if args.debug {
+    if args.debug >= 2 {
         println!(
             "[evolutionary_phase]: Initial population size: {}",
             population.len()
@@ -208,13 +208,13 @@ pub fn evolutionary_phase(
 
         // Early stopping
         if max_local.has_converged(best_fitness) {
-            if args.debug {
+            if args.debug >= 1{
                 println!("[evolutionary_phase]: Converged!");
             }
             break;
         }
 
-        if args.debug {
+        if args.debug >= 1{
             println!(
                 "\x1b[1A\x1b[2K[evolutionary_phase]: gen: {} | bf: {:.4} | pop/arch: {}/{} | bA: {:.4} |",
                 generation,

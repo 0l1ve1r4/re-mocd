@@ -63,12 +63,24 @@ impl ConvergenceCriteria {
     }
 }
 
-pub fn crossover(parent1: &Partition, parent2: &Partition, rate: f64) -> Partition {
-    crossover::optimized_crossover(parent1, parent2, rate)
+pub fn crossover(parent1: &Partition, parent2: &Partition, crossover_rate: f64) -> Partition {
+    crossover::optimized_crossover(parent1, parent2, crossover_rate)
 }
 
 pub fn mutation(partition: &mut Partition, graph: &Graph, mutation_rate: f64) {
     mutation::optimized_mutate(partition, graph, mutation_rate);
+}
+
+pub fn sbx_crossover(parent1: &Partition, parent2: &Partition, crossover_rate: f64) -> Partition {
+    crossover::simulated_binary_crossover(parent1, parent2, crossover_rate, 15.0)
+}
+
+pub fn ensemble_crossover(parents: &[Partition], crossover_rate: f64) -> Partition {
+    crossover::ensemble_crossover(parents, crossover_rate)
+}
+
+pub fn pm_mutation(partition: &mut Partition, graph: &Graph, mutation_rate: f64) {
+    mutation::polynomial_mutation(partition, graph, mutation_rate, 20.0);
 }
 
 pub fn get_fitness(

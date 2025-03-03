@@ -6,7 +6,6 @@
 
 use crate::graph::{CommunityId, Graph, NodeId, Partition};
 
-use rand::seq::SliceRandom;
 use rand::Rng;
 use rustc_hash::FxBuildHasher;
 use rustc_hash::FxHashMap as HashMap;
@@ -60,16 +59,64 @@ pub fn optimized_mutate(partition: &mut Partition, graph: &Graph, mutation_rate:
     partition.extend(fast_partition);
 }
 
-#[allow(dead_code)]
-pub fn mutate(partition: &mut Partition, graph: &Graph) {
+pub fn polynomial_mutation(
+    partition: &mut Partition,
+    graph: &Graph,
+    mutation_rate: f64,
+    eta_m: f64,
+) {
     let mut rng = rand::thread_rng();
-    let nodes: Vec<NodeId> = partition.keys().copied().collect();
-    let node = nodes.choose(&mut rng).unwrap();
-    let neighbors = graph.neighbors(node);
+    let nodes: Vec<NodeId> = graph.nodes.iter().cloned().collect();
 
-    if let Some(&neighbor) = neighbors.choose(&mut rng) {
-        if let Some(&neighbor_community) = partition.get(&neighbor) {
-            partition.insert(*node, neighbor_community);
+    let mut fast_partition: HashMap<NodeId, CommunityId> = partition.iter().map(|(&k, &v)| (k, v)).collect();
+
+    for &node in &nodes {
+        if rng.gen::<f64>() > mutation_rate {
+            continue;
+        }
+
+        let neighbor_communities: HashMap<CommunityId, usize> = match graph.adjacency_list.get(&node) {
+            Some(neighbors) => {
+                let mut freq = HashMap::default();
+                for &neighbor in neighbors {
+                    if let Some(&comm) = fast_partition.get(&neighbor) {
+                        *freq.entry(comm).or_insert(0) += 1;
+                    }
+                }
+                freq
+            }
+            None => continue,
+        };
+
+        if neighbor_communities.is_empty() {
+            continue;
+        }
+
+        let adjusted: Vec<(CommunityId, f64)> = neighbor_communities.iter()
+            .map(|(&comm, &count)| (comm, (count as f64).powf(1.0 / (eta_m + 1.0))))
+            .collect();
+
+        let total: f64 = adjusted.iter().map(|(_, val)| val).sum();
+
+        if total <= 0.0 {
+            continue;
+        }
+
+        let mut r = rng.gen::<f64>() * total;
+        let mut selected_comm = None;
+        for &(comm, val) in &adjusted {
+            if r <= val {
+                selected_comm = Some(comm);
+                break;
+            }
+            r -= val;
+        }
+
+        if let Some(comm) = selected_comm {
+            fast_partition.insert(node, comm);
         }
     }
+
+    partition.clear();
+    partition.extend(fast_partition);
 }

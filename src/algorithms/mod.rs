@@ -3,7 +3,8 @@
 //! Copyright 2024 - Guilherme Santos. If a copy of the MPL was not distributed with this
 //! file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
 
-mod rmocd;
+mod pesa_ii;
+mod nsga_ii;
 
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -11,28 +12,23 @@ use std::collections::HashMap;
 use crate::graph::{Graph, Partition};
 use crate::utils::args::AGArgs;
 
-const PARALLELISM_MIN_LEN: usize = 500;
+pub fn nsga_ii(graph: &Graph, mut args: AGArgs) -> (Partition, Vec<f64>, f64) {
+    args.parallelism = true;
+    let (best_solution, 
+        best_fitness_history, 
+        highest_modularity) = nsga_ii::run(graph, args);
+    (
+        normalize_community_ids(best_solution),
+        best_fitness_history,
+        highest_modularity,
+    )
+}
 
-/// Algorithm "smart" selection, based on the graph structure.
-pub fn select(graph: &Graph, mut args: AGArgs) -> (Partition, Vec<f64>, f64) {
-    if args.debug { graph.print(); }
-
-    match graph.nodes.len() > PARALLELISM_MIN_LEN {
-        true => {
-            if args.debug {
-                println!("[algorithms/mod.rs]: args.parallelism set to true");
-            }
-            args.parallelism = true;
-        }
-        false => {
-            if args.debug {
-                println!("[algorithms/mod.rs]: args.parallelism set to false");
-            }
-            args.parallelism = false
-        }
-    }
-
-    let (best_solution, best_fitness_history, highest_modularity) = rmocd::run(graph, args);
+pub fn pesa_ii(graph: &Graph, mut args: AGArgs, max_q: bool) -> (Partition, Vec<f64>, f64) {
+    args.parallelism = true;
+    let (best_solution, 
+        best_fitness_history, 
+        highest_modularity) = pesa_ii::run(graph, args, max_q);
     (
         normalize_community_ids(best_solution),
         best_fitness_history,

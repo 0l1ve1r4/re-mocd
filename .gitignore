@@ -10,8 +10,13 @@ __pycache__
 # folders
 experiments/
 
+# from docs
+public/ 
+
 # Specific output files
 output.json
 mocd_output.csv
 *.edgelist
 *.csv
+*.png
+*.py

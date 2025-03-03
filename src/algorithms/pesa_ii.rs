@@ -8,7 +8,6 @@ mod evolutionary;
 mod hypergrid;
 mod model_selection;
 mod algorithms;
-mod reduction;
 
 use crate::graph::{Graph, Partition};
 use crate::utils::args::AGArgs;
@@ -16,15 +15,10 @@ use hypergrid::{HyperBox, Solution};
 
 /// Main run function that creates both the real and random fronts, then
 /// selects the best solution via the chosen criterion.
-pub fn run(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
-    match args.multi_level {
-        true => {
-            return algorithms::multi_level_evolutionary(graph, args);
-        }
-
-        false => {
-            return  algorithms::single_level(graph, args);
-        }
-
+pub fn run(graph: &Graph, args: AGArgs, max_q: bool) -> (Partition, Vec<f64>, f64) {
+    if max_q {
+        algorithms::pesa_ii_maxq(graph, args)
+    } else {
+        algorithms::pesa_ii_minimax(graph, args)
     }
 }
