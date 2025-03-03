@@ -4,9 +4,9 @@
 //! Copyright 2024 - Guilherme Santos. If a copy of the MPL was not distributed with this
 //! file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
 
-use crate::{debug, DebugTypes};
-use crate::pesa::hypergrid::*;
 use crate::pesa::hypergrid;
+use crate::pesa::hypergrid::*;
+use crate::{debug, DebugTypes};
 
 use crate::operators::*;
 
@@ -101,24 +101,37 @@ pub fn evolutionary_phase(
         return (Vec::new(), Vec::new());
     }
 
-    debug!(args.debug, 2, format!(
-        "Starting with graph - nodes: {}, edges: {}",
-        graph.nodes.len(),
-        graph.edges.len()
-    ), DebugTypes::Info);    
+    debug!(
+        args.debug,
+        2,
+        format!(
+            "Starting with graph - nodes: {}, edges: {}",
+            graph.nodes.len(),
+            graph.edges.len()
+        ),
+        DebugTypes::Info
+    );
 
     let mut archive: Vec<Solution> = Vec::with_capacity(args.pop_size);
-    
+
     // Generate and validate initial population
     let mut population = generate_population(graph, args.pop_size);
     if population.is_empty() {
-        debug!(0, 0, "Failed to generate initial population", DebugTypes::Err);
+        debug!(
+            0,
+            0,
+            "Failed to generate initial population",
+            DebugTypes::Err
+        );
         return (Vec::new(), Vec::new());
     }
 
-    debug!(args.debug, 2, format!(
-        "Initial population size: {}",
-        population.len()), DebugTypes::Info);
+    debug!(
+        args.debug,
+        2,
+        format!("Initial population size: {}", population.len()),
+        DebugTypes::Info
+    );
 
     let mut best_fitness_history: Vec<f64> = Vec::with_capacity(args.num_gens);
     let mut max_local: ConvergenceCriteria = ConvergenceCriteria::default();
@@ -127,9 +140,14 @@ pub fn evolutionary_phase(
         // Validate population size before parallel processing
         let num_threads = rayon::current_num_threads();
         let chunk_size = population.len().max(1) / num_threads;
-        
+
         if chunk_size == 0 {
-            debug!(0, 0, "Population too small for parallelization", DebugTypes::Warn);            
+            debug!(
+                0,
+                0,
+                "Population too small for parallelization",
+                DebugTypes::Warn
+            );
             break;
         }
 
@@ -151,7 +169,7 @@ pub fn evolutionary_phase(
             .collect();
 
         if solutions.is_empty() {
-            debug!(0, 0, "No valid solutions generated", DebugTypes::Warn);            
+            debug!(0, 0, "No valid solutions generated", DebugTypes::Warn);
             break;
         }
 
@@ -166,7 +184,6 @@ pub fn evolutionary_phase(
         if archive.len() > MAX_ARCHIVE_SIZE {
             hypergrid::truncate_archive(&mut archive, MAX_ARCHIVE_SIZE);
         }
-
 
         let hyperboxes: Vec<HyperBox> = hypergrid::create(&archive, hypergrid::GRID_DIVISIONS);
         let best_fitness = archive
@@ -187,7 +204,9 @@ pub fn evolutionary_phase(
             break;
         }
 
-        debug!(args.debug, 1, 
+        debug!(
+            args.debug,
+            1,
             format!(
                 "Gen: {} | bf: {:.4} | pop/arch: {}/{} | bA: {:.4} |",
                 generation,
@@ -195,7 +214,9 @@ pub fn evolutionary_phase(
                 population.len(),
                 archive.len(),
                 max_local.get_best_fitness(),
-            ), DebugTypes::Info);
+            ),
+            DebugTypes::Info
+        );
     }
 
     // Return empty results if archive is empty

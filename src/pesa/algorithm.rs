@@ -1,16 +1,16 @@
 const NUM_RANDOM_NETWORKS: usize = 0;
 const RANDOM_NETWORKS_MAX_GENS: usize = 20;
 
-use crate::graph::{self, Graph, Partition};
-use crate::utils::args::AGArgs;
 use super::evolutionary::evolutionary_phase;
 use super::hypergrid::Solution;
 use super::model_selection::{max_q_selection, min_max_selection};
+use crate::graph::{self, Graph, Partition};
+use crate::utils::args::AGArgs;
 
+use rand::seq::SliceRandom as _;
+use rand::thread_rng;
 use rustc_hash::FxBuildHasher;
 use std::collections::HashMap;
-use rand::thread_rng;
-use rand::seq::SliceRandom as _;
 
 /// Generates multiple random networks and combines their solutions
 fn generate_random_networks(original: &Graph, num_networks: usize) -> Vec<Graph> {
@@ -63,7 +63,7 @@ pub fn pesa_ii_maxq(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
     // Phase 1: Evolutionary algorithm returns the Pareto frontier
     let (archive, best_fitness_history) = evolutionary_phase(graph, &args, &degrees);
 
-    // Phase 2: Selection Model> max q 
+    // Phase 2: Selection Model> max q
     let best_solution = max_q_selection(&archive);
 
     (
@@ -76,7 +76,7 @@ pub fn pesa_ii_maxq(graph: &Graph, args: AGArgs) -> (Partition, Vec<f64>, f64) {
 pub fn pesa_ii_minimax(graph: &Graph, mut args: AGArgs) -> (Partition, Vec<f64>, f64) {
     let degrees: HashMap<i32, usize, FxBuildHasher> = graph.precompute_degress();
 
-    // Phase 1: Evolutionary algorithm returns the Pareto frontier 
+    // Phase 1: Evolutionary algorithm returns the Pareto frontier
     let (archive, best_fitness_history) = evolutionary_phase(graph, &args, &degrees);
 
     // Phase 2: Selection Model: mini-max selection

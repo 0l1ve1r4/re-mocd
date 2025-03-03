@@ -46,9 +46,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_default_struct(){
+    fn test_default_struct() {
         let default_struct = AGArgs::default();
-        let expected_struct =   AGArgs {
+        let expected_struct = AGArgs {
             num_gens: 1000,
             pop_size: 100,
             cross_rate: 0.9,

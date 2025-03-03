@@ -41,11 +41,12 @@ impl Graph {
     }
 
     pub fn print(&self) {
-        debug!(0, 0, format!(
-            "graph n/e: {}/{}",
-            self.nodes.len(),
-            self.edges.len(),
-        ), DebugTypes::Info);
+        debug!(
+            0,
+            0,
+            format!("graph n/e: {}/{}", self.nodes.len(), self.edges.len(),),
+            DebugTypes::Info
+        );
     }
 
     pub fn add_edge(&mut self, from: NodeId, to: NodeId) {
@@ -119,9 +120,8 @@ mod test {
         graph.add_edge(0, 2);
         graph.add_edge(0, 4);
 
-        assert_eq!(graph.neighbors(&0), [1,2,4]);      
+        assert_eq!(graph.neighbors(&0), [1, 2, 4]);
     }
-
 
     #[test]
     fn test_precompute_degress() {
@@ -137,7 +137,6 @@ mod test {
         expected.insert(1, 1);
 
         assert_eq!(graph.precompute_degress(), expected);
-
     }
 
     #[test]

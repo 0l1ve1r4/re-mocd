@@ -5,8 +5,8 @@
 //! file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
 
 mod algorithm;
-mod individual;
 mod core;
+mod individual;
 
 use crate::graph::{Graph, Partition};
 use crate::utils::args::AGArgs;

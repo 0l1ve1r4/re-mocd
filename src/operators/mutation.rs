@@ -68,31 +68,34 @@ pub fn polynomial_mutation(
     let mut rng = rand::thread_rng();
     let nodes: Vec<NodeId> = graph.nodes.iter().cloned().collect();
 
-    let mut fast_partition: HashMap<NodeId, CommunityId> = partition.iter().map(|(&k, &v)| (k, v)).collect();
+    let mut fast_partition: HashMap<NodeId, CommunityId> =
+        partition.iter().map(|(&k, &v)| (k, v)).collect();
 
     for &node in &nodes {
         if rng.gen::<f64>() > mutation_rate {
             continue;
         }
 
-        let neighbor_communities: HashMap<CommunityId, usize> = match graph.adjacency_list.get(&node) {
-            Some(neighbors) => {
-                let mut freq = HashMap::default();
-                for &neighbor in neighbors {
-                    if let Some(&comm) = fast_partition.get(&neighbor) {
-                        *freq.entry(comm).or_insert(0) += 1;
+        let neighbor_communities: HashMap<CommunityId, usize> =
+            match graph.adjacency_list.get(&node) {
+                Some(neighbors) => {
+                    let mut freq = HashMap::default();
+                    for &neighbor in neighbors {
+                        if let Some(&comm) = fast_partition.get(&neighbor) {
+                            *freq.entry(comm).or_insert(0) += 1;
+                        }
                     }
+                    freq
                 }
-                freq
-            }
-            None => continue,
-        };
+                None => continue,
+            };
 
         if neighbor_communities.is_empty() {
             continue;
         }
 
-        let adjusted: Vec<(CommunityId, f64)> = neighbor_communities.iter()
+        let adjusted: Vec<(CommunityId, f64)> = neighbor_communities
+            .iter()
             .map(|(&comm, &count)| (comm, (count as f64).powf(1.0 / (eta_m + 1.0))))
             .collect();
 

@@ -6,11 +6,11 @@
 
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict};
-use std::collections::BTreeMap;
 use rustc_hash::FxHashMap as HashMap;
+use std::collections::BTreeMap;
 
-mod pesa;
 mod nsga;
+mod pesa;
 
 mod graph;
 pub mod operators;
@@ -37,25 +37,23 @@ pub enum DebugTypes {
 #[macro_export]
 macro_rules! debug {
     ($lvl:expr, $needed:expr, $msg:expr, $typ:expr) => {
-        if $lvl < $needed {
-            ()
-        }
+        if $lvl >= $needed {
+            let color = match $typ {
+                DebugTypes::Err => "\x1b[31m",
+                DebugTypes::Info => "\x1b[34m",
+                DebugTypes::Warn => "\x1b[33m",
+                DebugTypes::Success => "\x1b[32m",
+            };
 
-        let color = match $typ {
-            DebugTypes::Err => "\x1b[31m",     
-            DebugTypes::Info => "\x1b[34m",    
-            DebugTypes::Warn => "\x1b[33m",    
-            DebugTypes::Success => "\x1b[32m", 
+            println!(
+                "{}[{:?}]\x1b[0m [{}:{}]: {:?}",
+                color,
+                $typ,
+                file!(),
+                line!(),
+                $msg
+            );
         };
-
-        println!(
-            "{}[{:?}]\x1b[0m [{}:{}]: {:?}",
-            color,
-            $typ,
-            file!(),
-            line!(),
-            $msg
-        );
     };
 }
 
@@ -73,7 +71,11 @@ macro_rules! debug {
 /// - dict[int, int]: Mapping of node IDs to their detected community IDs
 #[pyfunction(name = "pesa_ii_minimax")]
 #[pyo3(signature = (graph, debug = 0))]
-fn pesa_ii_minimax(py: Python<'_>, graph: &Bound<'_, PyAny>, debug: i8) -> PyResult<BTreeMap<i32, i32>> {
+fn pesa_ii_minimax(
+    py: Python<'_>,
+    graph: &Bound<'_, PyAny>,
+    debug: i8,
+) -> PyResult<BTreeMap<i32, i32>> {
     let edges = get_edges(graph)?;
     let config = AlgorithmConfig::lib_args(debug);
 
@@ -96,7 +98,11 @@ fn pesa_ii_minimax(py: Python<'_>, graph: &Bound<'_, PyAny>, debug: i8) -> PyRes
 /// - dict[int, int]: Mapping of node IDs to their detected community IDs
 #[pyfunction(name = "pesa_ii_maxq")]
 #[pyo3(signature = (graph, debug = 0))]
-fn pesa_ii_maxq(py: Python<'_>, graph: &Bound<'_, PyAny>, debug: i8) -> PyResult<BTreeMap<i32, i32>> {
+fn pesa_ii_maxq(
+    py: Python<'_>,
+    graph: &Bound<'_, PyAny>,
+    debug: i8,
+) -> PyResult<BTreeMap<i32, i32>> {
     let edges = get_edges(graph)?;
     let config = AlgorithmConfig::lib_args(debug);
 
@@ -204,7 +210,6 @@ fn normalize_community_ids(partition: Partition) -> BTreeMap<i32, i32> {
 
     new_partition
 }
-
 
 // ================================================================================================
 // Module

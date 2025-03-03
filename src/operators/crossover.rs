@@ -5,10 +5,10 @@
 //! file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
 
 use crate::graph::{NodeId, Partition};
-use std::collections::HashMap;
 use rand::prelude::SliceRandom;
 use rand::Rng;
 use std::collections::BTreeMap;
+use std::collections::HashMap;
 
 pub fn optimized_crossover(
     parent1: &Partition,
@@ -111,10 +111,7 @@ pub fn simulated_binary_crossover(
 }
 
 // Ensemble Learning-Based Multi-Individual Crossover
-pub fn ensemble_crossover(
-    parents: &[Partition],
-    crossover_rate: f64,
-) -> Partition {
+pub fn ensemble_crossover(parents: &[Partition], crossover_rate: f64) -> Partition {
     let mut rng = rand::thread_rng();
 
     // Check if crossover should be skipped
@@ -145,7 +142,8 @@ pub fn ensemble_crossover(
             .collect();
 
         // Select community with tie-breaking
-        let selected = candidates.choose(&mut rng)
+        let selected = candidates
+            .choose(&mut rng)
             .copied()
             .unwrap_or_else(|| parents[0][&node]);
 
