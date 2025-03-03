@@ -1,4 +1,4 @@
-use crate::algorithms::nsga_ii::individual::Individual;
+use crate::nsga::individual::Individual;
 
 use rustc_hash::FxHashMap as HashMap;
 use std::cmp::Ordering;

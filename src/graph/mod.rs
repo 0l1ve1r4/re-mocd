@@ -4,6 +4,8 @@
 //! Copyright 2024 - Guilherme Santos. If a copy of the MPL was not distributed with this
 //! file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
 
+use crate::{debug, DebugTypes};
+
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 
@@ -39,11 +41,11 @@ impl Graph {
     }
 
     pub fn print(&self) {
-        println!(
-            "[graph/mod.rs]: graph n/e: {}/{}",
+        debug!(0, 0, format!(
+            "graph n/e: {}/{}",
             self.nodes.len(),
             self.edges.len(),
-        );
+        ), DebugTypes::Info);
     }
 
     pub fn add_edge(&mut self, from: NodeId, to: NodeId) {

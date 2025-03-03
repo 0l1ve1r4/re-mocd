@@ -4,8 +4,9 @@
 //! Copyright 2024 - Guilherme Santos. If a copy of the MPL was not distributed with this
 //! file, You can obtain one at https://www.gnu.org/licenses/gpl-3.0.html
 
-use crate::algorithms::nsga_ii::individual::*;
-use crate::algorithms::nsga_ii::core::*;
+use crate::{debug, DebugTypes};
+use crate::nsga::individual::*;
+use crate::nsga::core::*;
 use crate::utils::args::AGArgs;
 use crate::graph::{Graph, Partition};
 use crate::operators;
@@ -94,21 +95,16 @@ pub fn nsga_ii(graph: &Graph, debug_level: i8, args: AGArgs) -> Partition {
 
         // Early stopping
         if max_local.has_converged(best_fitness) {
-            if args.debug >= 1{
-                println!("[evolutionary_phase]: Converged!");
-            }
+            debug!(args.debug, 1, "Converged", DebugTypes::Success);
                 break;
         }
         
-        if debug_level >= 1 && (generation % 10 == 0 || generation == args.num_gens - 1) {
-            let first_front_size = individuals.iter().filter(|ind| ind.rank == 1).count();
-            println!(
-                "NSGA-II: Gen {} | Best fitness: {:.4} | First front size: {} | Pop size: {}",
+        if generation % 10 == 0 || generation == args.num_gens - 1 {
+            debug!(debug_level, 1, format!(
+                "NSGA-II: Gen {} | Best fitness: {:.4}",
                 generation,
                 best_fitness,
-                first_front_size,
-                individuals.len()
-            );
+            ), DebugTypes::Info);
         }
     }
     
@@ -122,9 +118,6 @@ pub fn nsga_ii(graph: &Graph, debug_level: i8, args: AGArgs) -> Partition {
     let best_solution = max_q_selection(&first_front);
     
     let elapsed = start_time.elapsed();
-    if debug_level >= 1 {
-        println!("NSGA-II completed in {:.2?}", elapsed);
-    }
-    
+    debug!(debug_level, 1, format!("NSGA-II completed in {:.2?}", elapsed), DebugTypes::Success);    
     best_solution.partition.clone()
 }

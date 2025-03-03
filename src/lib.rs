@@ -7,14 +7,57 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict};
 use std::collections::BTreeMap;
+use rustc_hash::FxHashMap as HashMap;
 
-mod algorithms;
+mod pesa;
+mod nsga;
+
 mod graph;
 pub mod operators;
 mod utils;
 
 use graph::{CommunityId, Graph, NodeId, Partition};
 use utils::args::AGArgs as AlgorithmConfig;
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum DebugTypes {
+    Err,
+    Info,
+    Warn,
+    Success,
+}
+
+/// Debug macro, for easy debug
+/// lvl: debug level given by the user when using the lib
+/// needed: min valur to print this debug
+///
+/// examples:
+/// if user set lvl = 0, but the "nsga-ii is running" text need at least
+/// debug level = 1, this output will not be showed.
+#[macro_export]
+macro_rules! debug {
+    ($lvl:expr, $needed:expr, $msg:expr, $typ:expr) => {
+        if $lvl < $needed {
+            ()
+        }
+
+        let color = match $typ {
+            DebugTypes::Err => "\x1b[31m",     
+            DebugTypes::Info => "\x1b[34m",    
+            DebugTypes::Warn => "\x1b[33m",    
+            DebugTypes::Success => "\x1b[32m", 
+        };
+
+        println!(
+            "{}[{:?}]\x1b[0m [{}:{}]: {:?}",
+            color,
+            $typ,
+            file!(),
+            line!(),
+            $msg
+        );
+    };
+}
 
 // ================================================================================================
 // Py functions
@@ -34,15 +77,12 @@ fn pesa_ii_minimax(py: Python<'_>, graph: &Bound<'_, PyAny>, debug: i8) -> PyRes
     let edges = get_edges(graph)?;
     let config = AlgorithmConfig::lib_args(debug);
 
-    if config.debug >= 2 {
-        println!("{:?}", config);
-    }
-
+    debug!(config.debug, 2, config, DebugTypes::Info);
     py.allow_threads(|| {
         let graph = build_graph(edges);
-        let (communities, _, _) = algorithms::pesa_ii(&graph, config, false);
+        let (communities, _, _) = pesa::run(&graph, config, false);
 
-        Ok(communities)
+        Ok(normalize_community_ids(communities))
     })
 }
 
@@ -60,15 +100,12 @@ fn pesa_ii_maxq(py: Python<'_>, graph: &Bound<'_, PyAny>, debug: i8) -> PyResult
     let edges = get_edges(graph)?;
     let config = AlgorithmConfig::lib_args(debug);
 
-    if config.debug >= 2 {
-        println!("{:?}", config);
-    }
-
+    debug!(config.debug, 2, config, DebugTypes::Info);
     py.allow_threads(|| {
         let graph = build_graph(edges);
-        let (communities, _, _) = algorithms::pesa_ii(&graph, config, true);
+        let (communities, _, _) = pesa::run(&graph, config, true);
 
-        Ok(communities)
+        Ok(normalize_community_ids(communities))
     })
 }
 
@@ -86,15 +123,12 @@ fn nsga_ii(py: Python<'_>, graph: &Bound<'_, PyAny>, debug: i8) -> PyResult<BTre
     let edges = get_edges(graph)?;
     let config = AlgorithmConfig::lib_args(debug);
 
-    if config.debug >= 2 {
-        println!("{:?}", config);
-    }
-
+    debug!(config.debug, 2, config, DebugTypes::Info);
     py.allow_threads(|| {
         let graph = build_graph(edges);
-        let (communities, _, _) = algorithms::nsga_ii(&graph, config);
+        let (communities, _, _) = nsga::run(&graph, config);
 
-        Ok(communities)
+        Ok(normalize_community_ids(communities))
     })
 }
 
@@ -106,7 +140,7 @@ fn nsga_ii(py: Python<'_>, graph: &Bound<'_, PyAny>, debug: i8) -> PyResult<BTre
 ///
 /// # Returns
 /// - float: Modularity score based on (Shi, 2012) multi-objective modularity equation
-#[pyfunction(name = "modularity")]
+#[pyfunction(name = "fitness")]
 fn fitness(graph: &Bound<'_, PyAny>, partition: &Bound<'_, PyDict>) -> PyResult<f64> {
     let edges = get_edges(graph)?;
     let graph = build_graph(edges);
@@ -154,6 +188,24 @@ fn build_graph(edges: Vec<(NodeId, NodeId)>) -> Graph {
     graph
 }
 
+fn normalize_community_ids(partition: Partition) -> BTreeMap<i32, i32> {
+    let mut new_partition = Partition::new();
+    let mut id_mapping = HashMap::default();
+    let mut next_id = 0;
+
+    // Create a new mapping for community IDs
+    for (node_id, &community_id) in partition.iter() {
+        if let std::collections::hash_map::Entry::Vacant(e) = id_mapping.entry(community_id) {
+            e.insert(next_id);
+            next_id += 1;
+        }
+        new_partition.insert(*node_id, *id_mapping.get(&community_id).unwrap());
+    }
+
+    new_partition
+}
+
+
 // ================================================================================================
 // Module
 // ================================================================================================
@@ -177,10 +229,6 @@ fn re_mocd(m: &Bound<'_, PyModule>) -> PyResult<()> {
 #[pyo3(signature = (file_path))]
 fn from_file(file_path: String) -> PyResult<BTreeMap<i32, i32>> {
     let config = AlgorithmConfig::parse(&vec!["--library-".to_string(), file_path]);
-    if config.debug {
-        println!("[Detection]: Config: {:?}", config);
-    }
-
     let graph = Graph::from_edgelist(Path::new(&config.file_path))?;
     let (communities, _, _) = algorithms::pesa_ii(&graph, config);
 

@@ -30,7 +30,7 @@ impl Default for ConvergenceCriteria {
         ConvergenceCriteria {
             current_best_fitness: f64::MIN,
             generations_unchanged: 0,
-            max_stagnant_generations: 100,
+            max_stagnant_generations: 20,
             tolerance: 1e-6,
         }
     }
