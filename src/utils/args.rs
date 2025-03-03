@@ -33,13 +33,12 @@ impl AGArgs {
         AGArgs {
             num_gens: 0x3E8,
             pop_size: 100,
-            mut_rate: 0.1,
-            cross_rate: 0.9,
+            mut_rate: 0.2,
+            cross_rate: 0.8,
             parallelism: true,
             debug: verbose,
         }
     }
-
 }
 
 #[cfg(test)]
